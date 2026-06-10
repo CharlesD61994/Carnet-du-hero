@@ -155,7 +155,7 @@ export function JourneyScreen({
           active
             ? "border-gold/70 bg-gold/15 text-parchment shadow-[0_0_18px_rgba(218,165,32,0.16)]"
             : dashed
-              ? "border-dashed border-line/60 bg-black/10 text-muted"
+              ? "border-line/70 bg-black/20 text-muted"
               : "border-line/70 bg-black/20 text-muted"
         }`}
       >
