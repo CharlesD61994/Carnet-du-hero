@@ -261,13 +261,24 @@ export function JourneyScreen({
             {branches.length === 1 ? (
               <div className="inline-flex flex-col items-center">{branches[0]}</div>
             ) : (
-              <div className="inline-flex items-start justify-center gap-4 px-2">
-                {branches.map((branch, index) => (
-                  <div key={index} className="relative flex min-w-[5.5rem] flex-col items-center">
-                    <div className="h-4 w-px bg-gold/35" />
-                    {branch}
-                  </div>
-                ))}
+              <div className="inline-flex items-start justify-center px-2">
+                {branches.map((branch, index) => {
+                  const isFirst = index === 0;
+                  const isLast = index === branches.length - 1;
+                  const horizontalClass = isFirst
+                    ? "left-1/2 right-0"
+                    : isLast
+                      ? "left-0 right-1/2"
+                      : "left-0 right-0";
+
+                  return (
+                    <div key={index} className="relative flex min-w-[6.25rem] flex-col items-center px-2 pt-4">
+                      <div className={`absolute top-0 h-px bg-gold/35 ${horizontalClass}`} />
+                      <div className="absolute left-1/2 top-0 h-4 w-px -translate-x-1/2 bg-gold/35" />
+                      {branch}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
