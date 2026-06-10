@@ -261,8 +261,7 @@ export function JourneyScreen({
             {branches.length === 1 ? (
               <div className="inline-flex flex-col items-center">{branches[0]}</div>
             ) : (
-              <div className="relative inline-flex items-start justify-center gap-4 px-2">
-                <div className="absolute left-[2.75rem] right-[2.75rem] top-0 h-px bg-gold/35" />
+              <div className="inline-flex items-start justify-center gap-4 px-2">
                 {branches.map((branch, index) => (
                   <div key={index} className="relative flex min-w-[5.5rem] flex-col items-center">
                     <div className="h-4 w-px bg-gold/35" />
@@ -416,7 +415,7 @@ export function JourneyScreen({
             </div>
           </div>
           <div ref={fullscreenTreeRef} className="flex-1 overflow-auto p-4">
-            <div className="min-h-full rounded-3xl border border-line/50 bg-black/15 p-4">
+            <div className="min-h-full p-4">
               {treeContent}
             </div>
           </div>
