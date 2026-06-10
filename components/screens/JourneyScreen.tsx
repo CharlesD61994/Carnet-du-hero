@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Adventure, JourneyChoice, JourneyEvent, JourneyNode, JourneyTag } from "@/lib/types";
 import { Header } from "@/components/ui/Header";
@@ -88,6 +88,9 @@ export function JourneyScreen({
   const currentEvents = currentNode.events ?? [];
   const [choiceParagraph, setChoiceParagraph] = useState("");
   const [selectedNode, setSelectedNode] = useState<JourneyNode | null>(null);
+  const [treeFullscreen, setTreeFullscreen] = useState(false);
+  const compactTreeRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenTreeRef = useRef<HTMLDivElement | null>(null);
 
   const childrenByParent = useMemo(() => {
     const map = new Map<string, JourneyNode[]>();
@@ -102,11 +105,34 @@ export function JourneyScreen({
 
   const roots = journey.nodes.filter((node) => !node.parentId);
 
+  const centerCurrentNode = (container: HTMLDivElement | null, behavior: ScrollBehavior = "smooth") => {
+    if (!container) return;
+    const current = container.querySelector<HTMLElement>("[data-current-node='true']");
+    if (!current) return;
+    current.scrollIntoView({ block: "center", inline: "center", behavior });
+  };
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      centerCurrentNode(compactTreeRef.current, "auto");
+      if (treeFullscreen) centerCurrentNode(fullscreenTreeRef.current, "auto");
+    }, 80);
+    return () => window.clearTimeout(timeout);
+  }, [journey.currentNodeId, journey.nodes.length, treeFullscreen]);
+
   const addChoice = () => {
     const value = Number(choiceParagraph);
     if (!Number.isFinite(value) || value <= 0) return;
     onAddChoice(Math.floor(value));
     setChoiceParagraph("");
+  };
+
+  const openEvent = (event: JourneyEvent, closeOverlays = false) => {
+    if (closeOverlays) {
+      setSelectedNode(null);
+      setTreeFullscreen(false);
+    }
+    onOpenEvent(event);
   };
 
   const renderNodeBadge = (
@@ -119,9 +145,10 @@ export function JourneyScreen({
     <button
       type="button"
       onClick={onClick}
+      data-current-node={active ? "true" : undefined}
       className={`inline-flex max-w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition active:scale-[0.99] ${
         active
-          ? "border-gold/60 bg-gold/15 text-parchment shadow-[0_0_18px_rgba(218,165,32,0.12)]"
+          ? "border-gold/70 bg-gold/15 text-parchment shadow-[0_0_18px_rgba(218,165,32,0.16)]"
           : dashed
             ? "border-dashed border-line/60 bg-black/10 text-muted"
             : "border-line/70 bg-black/20 text-muted"
@@ -164,11 +191,11 @@ export function JourneyScreen({
     );
   };
 
-  const renderEventPill = (event: JourneyEvent) => (
+  const renderEventPill = (event: JourneyEvent, closeOverlays = false) => (
     <button
       key={event.id}
       type="button"
-      onClick={() => onOpenEvent(event)}
+      onClick={() => openEvent(event, closeOverlays)}
       className="flex w-full items-center justify-between gap-3 rounded-xl border border-line/70 bg-black/20 px-3 py-2 text-left active:scale-[0.99]"
     >
       <span className="min-w-0 truncate text-sm text-parchment">
@@ -187,20 +214,16 @@ export function JourneyScreen({
     if (child) return renderTreeNode(child);
 
     const status = choiceStatus(choice, parentNode, journey.nodes);
-    return (
-      <div key={`choice-${choice.id}`} className="relative flex flex-col items-center">
-        <div className="h-4 border-l border-gold/35" />
-        {renderNodeBadge(
-          choice.to,
-          <span className={status.className}>{status.icon}</span>,
-          false,
-          true,
-          () => {
-            onGoToParagraph(choice.to);
-            setSelectedNode(null);
-          },
-        )}
-      </div>
+    return renderNodeBadge(
+      choice.to,
+      <span className={status.className}>{status.icon}</span>,
+      false,
+      true,
+      () => {
+        onGoToParagraph(choice.to);
+        setSelectedNode(null);
+        setTreeFullscreen(false);
+      },
     );
   };
 
@@ -233,24 +256,32 @@ export function JourneyScreen({
         {renderNodeBadge(node.paragraph, icons, isCurrent, false, () => setSelectedNode(node))}
 
         {branches.length ? (
-          <div className="relative mt-0 flex flex-col items-center">
-            <div className="h-5 border-l border-gold/40" />
-            <div className="relative flex items-start justify-center gap-4 px-2">
-              {branches.length > 1 ? (
-                <div className="absolute left-1/2 top-0 h-px -translate-x-1/2 border-t border-gold/35" style={{ width: `calc(100% - 2rem)` }} />
-              ) : null}
-              {branches.map((branch, index) => (
-                <div key={index} className="relative flex min-w-[5.5rem] flex-col items-center">
-                  {branches.length > 1 ? <div className="h-4 border-l border-gold/35" /> : null}
-                  {branch}
-                </div>
-              ))}
-            </div>
+          <div className="mt-0 inline-flex flex-col items-center">
+            <div className="h-5 w-px bg-gold/40" />
+            {branches.length === 1 ? (
+              <div className="inline-flex flex-col items-center">{branches[0]}</div>
+            ) : (
+              <div className="relative inline-flex items-start justify-center gap-4 px-2">
+                <div className="absolute left-[2.75rem] right-[2.75rem] top-0 h-px bg-gold/35" />
+                {branches.map((branch, index) => (
+                  <div key={index} className="relative flex min-w-[5.5rem] flex-col items-center">
+                    <div className="h-4 w-px bg-gold/35" />
+                    {branch}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : null}
       </div>
     );
   };
+
+  const treeContent = (
+    <div className="flex min-w-max justify-center gap-8 px-8 py-4">
+      {roots.map((node) => renderTreeNode(node))}
+    </div>
+  );
 
   return (
     <div>
@@ -344,19 +375,56 @@ export function JourneyScreen({
             <div>
               <h2 className="font-serif text-sm uppercase tracking-wide text-gold2">Arbre de parcours</h2>
             </div>
-            <p className="rounded-full border border-line/70 bg-black/20 px-3 py-1 text-xs text-muted">
-              {journey.nodes.length} §
-            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTreeFullscreen(true)}
+                className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold2 active:scale-[0.98]"
+              >
+                ⛶ Plein écran
+              </button>
+              <p className="rounded-full border border-line/70 bg-black/20 px-3 py-1 text-xs text-muted">
+                {journey.nodes.length} §
+              </p>
+            </div>
           </div>
 
-          <div className="max-h-[34rem] overflow-auto rounded-2xl border border-line/40 bg-black/10 p-4">
-            <div className="flex min-w-max justify-center gap-8">{roots.map((node) => renderTreeNode(node))}</div>
+          <div ref={compactTreeRef} className="max-h-[24rem] overflow-auto rounded-2xl border border-line/40 bg-black/10 p-2">
+            {treeContent}
           </div>
         </Panel>
       </div>
 
+      {treeFullscreen && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-night text-parchment">
+          <div className="shrink-0 border-b border-line bg-night/95 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] shadow-xl">
+            <div className="flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setTreeFullscreen(false)}
+                className="rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm font-semibold text-muted active:scale-[0.98]"
+              >
+                ← Retour au parcours
+              </button>
+              <button
+                type="button"
+                onClick={() => centerCurrentNode(fullscreenTreeRef.current)}
+                className="rounded-2xl border border-gold/30 bg-gold/15 px-4 py-3 text-sm font-semibold text-gold2 active:scale-[0.98]"
+              >
+                Centrer §{currentNode.paragraph}
+              </button>
+            </div>
+          </div>
+          <div ref={fullscreenTreeRef} className="flex-1 overflow-auto p-4">
+            <div className="min-h-full rounded-3xl border border-line/50 bg-black/15 p-4">
+              {treeContent}
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedNode && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/60 p-4" onClick={() => setSelectedNode(null)}>
+        <div className="fixed inset-0 z-[80] flex items-end bg-black/60 p-4" onClick={() => setSelectedNode(null)}>
           <div
             className="max-h-[82vh] w-full overflow-auto rounded-t-3xl border border-line bg-night p-4 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
@@ -376,7 +444,7 @@ export function JourneyScreen({
             </div>
 
             <div className="mb-4 space-y-2">
-              {(selectedNode.events ?? []).length ? (selectedNode.events ?? []).map((event) => renderEventPill(event)) : <span className="text-sm text-muted">Aucun événement lié.</span>}
+              {(selectedNode.events ?? []).length ? (selectedNode.events ?? []).map((event) => renderEventPill(event, true)) : <span className="text-sm text-muted">Aucun événement lié.</span>}
             </div>
 
             <div className="mb-4 rounded-2xl border border-line/70 bg-black/20 p-3 text-sm leading-6 text-parchment">
@@ -394,6 +462,7 @@ export function JourneyScreen({
                       type="button"
                       onClick={() => {
                         setSelectedNode(null);
+                        setTreeFullscreen(false);
                         onGoToParagraph(choice.to);
                       }}
                       className="flex w-full items-center justify-between rounded-xl border border-line/70 bg-black/20 px-3 py-2 text-left active:scale-[0.99]"
