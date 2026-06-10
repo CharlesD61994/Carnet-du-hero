@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Adventure, Category, DiceRoll, Item, JourneyEvent, JourneyNode, JourneyTag, Monster, NewAdventureData, Screen } from "@/lib/types";
 import { makeAdventureFromData, makeInitialJourney, starter, STORAGE, uid } from "@/lib/templates";
 import { BottomNav } from "@/components/navigation/BottomNav";
@@ -36,6 +36,122 @@ function withAdventureDefaults(adventure: Adventure): Adventure {
 
 const todayIso = () => new Date().toISOString();
 
+
+type ModalField = {
+  name: string;
+  label: string;
+  type?: "text" | "textarea" | "number" | "select";
+  value?: string;
+  placeholder?: string;
+  options?: string[];
+};
+
+type FormModalState = {
+  title: string;
+  description?: string;
+  submitLabel?: string;
+  fields: ModalField[];
+};
+
+type FormModalProps = FormModalState & {
+  onCancel: () => void;
+  onSubmit: (values: Record<string, string>) => void;
+};
+
+function ThemedFormModal({
+  title,
+  description,
+  submitLabel = "Enregistrer",
+  fields,
+  onCancel,
+  onSubmit,
+}: FormModalProps) {
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(fields.map((field) => [field.name, field.value ?? ""])),
+  );
+
+  const update = (name: string, value: string) => {
+    setValues((current) => ({ ...current, [name]: value }));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end bg-black/70 px-4 pb-4 pt-20 backdrop-blur-sm">
+      <div className="w-full max-h-[82vh] overflow-auto rounded-t-3xl border border-gold/25 bg-night p-4 shadow-2xl">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-xl font-bold text-parchment">{title}</h2>
+            {description ? <p className="mt-1 text-sm leading-6 text-muted">{description}</p> : null}
+          </div>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="shrink-0 rounded-full border border-line bg-black/20 px-3 py-2 text-sm text-muted active:scale-[0.98]"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {fields.map((field) => (
+            <label key={field.name} className="block">
+              <span className="mb-2 block font-serif text-xs uppercase tracking-widest text-gold2">
+                {field.label}
+              </span>
+              {field.type === "textarea" ? (
+                <textarea
+                  value={values[field.name] ?? ""}
+                  onChange={(event) => update(field.name, event.target.value)}
+                  rows={6}
+                  placeholder={field.placeholder}
+                  className="w-full resize-y rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm leading-6 text-parchment outline-none placeholder:text-muted focus:border-gold/50"
+                />
+              ) : field.type === "select" ? (
+                <select
+                  value={values[field.name] ?? ""}
+                  onChange={(event) => update(field.name, event.target.value)}
+                  className="w-full rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none focus:border-gold/50"
+                >
+                  {(field.options ?? []).map((option) => (
+                    <option key={option} value={option} className="bg-night text-parchment">
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={values[field.name] ?? ""}
+                  onChange={(event) => update(field.name, event.target.value)}
+                  type={field.type === "number" ? "number" : "text"}
+                  inputMode={field.type === "number" ? "numeric" : undefined}
+                  placeholder={field.placeholder}
+                  className="w-full rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
+                />
+              )}
+            </label>
+          ))}
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-2xl border border-line bg-black/25 px-4 py-3 font-semibold text-muted active:scale-[0.98]"
+          >
+            Annuler
+          </button>
+          <button
+            type="button"
+            onClick={() => onSubmit(values)}
+            className="rounded-2xl border border-gold/40 bg-gold/20 px-4 py-3 font-semibold text-gold2 active:scale-[0.98]"
+          >
+            {submitLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CarnetApp() {
   const [ready, setReady] = useState(false);
   const [adventures, setAdventures] = useState<Adventure[]>([]);
@@ -46,6 +162,21 @@ export default function CarnetApp() {
   const [creating, setCreating] = useState(false);
   const [diceOpen, setDiceOpen] = useState(false);
   const [pendingDiceContext, setPendingDiceContext] = useState<{ nodeId: string; paragraph: number; context: string } | null>(null);
+  const [formModal, setFormModal] = useState<FormModalState | null>(null);
+  const formResolver = useRef<((values: Record<string, string> | null) => void) | null>(null);
+
+  const requestForm = (modal: FormModalState) =>
+    new Promise<Record<string, string> | null>((resolve) => {
+      formResolver.current = resolve;
+      setFormModal(modal);
+    });
+
+  const closeForm = (values: Record<string, string> | null) => {
+    const resolver = formResolver.current;
+    formResolver.current = null;
+    setFormModal(null);
+    resolver?.(values);
+  };
 
   useEffect(() => {
     try {
@@ -151,19 +282,31 @@ export default function CarnetApp() {
     });
   };
 
-  const numberFromPrompt = (message: string, fallback: number) => {
-    const value = Number(prompt(message, String(fallback)));
+  const requestNumber = async (label: string, fallback: number) => {
+    const values = await requestForm({
+      title: label,
+      fields: [{ name: "value", label, type: "number", value: String(fallback) }],
+    });
+    const value = Number(values?.value);
     return Number.isFinite(value) ? value : fallback;
   };
 
-  const addItem = () => {
-    const name = prompt("Nom de l’objet")?.trim();
+  const addItem = async () => {
+    const values = await requestForm({
+      title: "Ajouter un objet",
+      description: "Entre les informations comme tu les noterais sur ta feuille.",
+      fields: [
+        { name: "name", label: "Nom", placeholder: "Ex. Clé d’argent" },
+        { name: "icon", label: "Icône ou emoji", value: "🎒" },
+        { name: "subtitle", label: "Description", type: "textarea", value: "Objet personnalisé" },
+        { name: "quantity", label: "Quantité", type: "number", value: "1" },
+      ],
+    });
+    const name = values?.name.trim();
     if (!name) return;
-    const icon = prompt("Icône ou emoji", "🎒")?.trim() || "🎒";
-    const subtitle =
-      prompt("Description courte", "Objet personnalisé")?.trim() ||
-      "Objet personnalisé";
-    const quantity = Math.max(1, numberFromPrompt("Quantité", 1));
+    const icon = values?.icon.trim() || "🎒";
+    const subtitle = values?.subtitle.trim() || "Objet personnalisé";
+    const quantity = Math.max(1, Number(values?.quantity) || 1);
     setSelected({
       items: [
         ...selected.items,
@@ -172,24 +315,25 @@ export default function CarnetApp() {
     });
   };
 
-  const editItem = (item: Item) => {
-    const name = prompt("Nom de l’objet", item.name)?.trim();
+  const editItem = async (item: Item) => {
+    const values = await requestForm({
+      title: "Modifier l’objet",
+      fields: [
+        { name: "name", label: "Nom", value: item.name },
+        { name: "icon", label: "Icône ou emoji", value: item.icon },
+        { name: "subtitle", label: "Description", type: "textarea", value: item.subtitle },
+        { name: "quantity", label: "Quantité", type: "number", value: String(item.quantity) },
+        { name: "kind", label: "Catégorie", type: "select", value: item.kind, options: ["Objets", "Armes", "Armures", "Sorts", "Autres"] },
+      ],
+    });
+    const name = values?.name.trim();
     if (!name) return;
-    const icon = prompt("Icône ou emoji", item.icon)?.trim() || item.icon;
-    const subtitle =
-      prompt("Description courte", item.subtitle)?.trim() || item.subtitle;
-    const quantity = Math.max(0, numberFromPrompt("Quantité", item.quantity));
-    const kindInput = prompt(
-      "Catégorie : Objets, Armes, Armures, Sorts ou Autres",
-      item.kind,
-    )?.trim() as Category | undefined;
-    const kind =
-      kindInput &&
-      (["Objets", "Armes", "Armures", "Sorts", "Autres"] as string[]).includes(
-        kindInput,
-      )
-        ? kindInput
-        : item.kind;
+    const icon = values?.icon.trim() || item.icon;
+    const subtitle = values?.subtitle.trim() || item.subtitle;
+    const quantity = Math.max(0, Number(values?.quantity) || 0);
+    const kind = (["Objets", "Armes", "Armures", "Sorts", "Autres"] as string[]).includes(values?.kind ?? "")
+      ? (values?.kind as Category)
+      : item.kind;
     setSelected({
       items: selected.items.map((i) =>
         i.id === item.id ? { ...i, name, icon, subtitle, quantity, kind } : i,
@@ -202,14 +346,22 @@ export default function CarnetApp() {
     setSelected({ items: selected.items.filter((i) => i.id !== id) });
   };
 
-  const addNote = () => {
-    const note = prompt("Nouvelle note")?.trim();
+  const addNote = async () => {
+    const values = await requestForm({
+      title: "Nouvelle note",
+      fields: [{ name: "note", label: "Note", type: "textarea", placeholder: "Écris ta note…" }],
+    });
+    const note = values?.note.trim();
     if (!note) return;
     setSelected({ notes: [...selected.notes, note] });
   };
 
-  const editNote = (index: number) => {
-    const note = prompt("Modifier la note", selected.notes[index])?.trim();
+  const editNote = async (index: number) => {
+    const values = await requestForm({
+      title: "Modifier la note",
+      fields: [{ name: "note", label: "Note", type: "textarea", value: selected.notes[index] }],
+    });
+    const note = values?.note.trim();
     if (!note) return;
     setSelected({
       notes: selected.notes.map((n, i) => (i === index ? note : n)),
@@ -221,12 +373,21 @@ export default function CarnetApp() {
     setSelected({ notes: selected.notes.filter((_, i) => i !== index) });
   };
 
-  const addMonster = () => {
-    const name = prompt("Nom du monstre")?.trim();
+  const addMonster = async () => {
+    const values = await requestForm({
+      title: "Ajouter un monstre",
+      fields: [
+        { name: "name", label: "Nom", placeholder: "Ex. Vampire" },
+        { name: "skill", label: "Habileté", type: "number", value: "6" },
+        { name: "endurance", label: "Endurance", type: "number", value: "8" },
+        { name: "note", label: "Note", type: "textarea" },
+      ],
+    });
+    const name = values?.name.trim();
     if (!name) return;
-    const skill = Math.max(0, numberFromPrompt("Habileté", 6));
-    const endurance = Math.max(1, numberFromPrompt("Endurance", 8));
-    const note = prompt("Note", "")?.trim() || "";
+    const skill = Math.max(0, Number(values?.skill) || 6);
+    const endurance = Math.max(1, Number(values?.endurance) || 8);
+    const note = values?.note.trim() || "";
     setSelected({
       monsters: [
         ...selected.monsters,
@@ -245,19 +406,23 @@ export default function CarnetApp() {
     });
   };
 
-  const editMonster = (monster: Monster) => {
-    const name = prompt("Nom du monstre", monster.name)?.trim();
+  const editMonster = async (monster: Monster) => {
+    const values = await requestForm({
+      title: "Modifier le monstre",
+      fields: [
+        { name: "name", label: "Nom", value: monster.name },
+        { name: "skill", label: "Habileté", type: "number", value: String(monster.skill) },
+        { name: "maxEndurance", label: "Endurance maximale", type: "number", value: String(monster.maxEndurance) },
+        { name: "endurance", label: "Endurance actuelle", type: "number", value: String(monster.endurance) },
+        { name: "note", label: "Note", type: "textarea", value: monster.note },
+      ],
+    });
+    const name = values?.name.trim();
     if (!name) return;
-    const skill = Math.max(0, numberFromPrompt("Habileté", monster.skill));
-    const maxEndurance = Math.max(
-      1,
-      numberFromPrompt("Endurance maximale", monster.maxEndurance),
-    );
-    const endurance = Math.min(
-      maxEndurance,
-      Math.max(0, numberFromPrompt("Endurance actuelle", monster.endurance)),
-    );
-    const note = prompt("Note", monster.note)?.trim() || "";
+    const skill = Math.max(0, Number(values?.skill) || monster.skill);
+    const maxEndurance = Math.max(1, Number(values?.maxEndurance) || monster.maxEndurance);
+    const endurance = Math.min(maxEndurance, Math.max(0, Number(values?.endurance) || monster.endurance));
+    const note = values?.note.trim() || "";
     setSelected({
       monsters: selected.monsters.map((m) =>
         m.id === monster.id
@@ -395,7 +560,7 @@ export default function CarnetApp() {
   };
 
 
-  const createJourneyEvent = (kind: JourneyTag) => {
+  const createJourneyEvent = async (kind: JourneyTag) => {
     if (!selected?.journey) return;
     const nodeId = selected.journey.currentNodeId;
     const node = selected.journey.nodes.find((item) => item.id === nodeId);
@@ -403,7 +568,20 @@ export default function CarnetApp() {
     const createdAt = todayIso();
 
     if (kind === "dice") {
-      const context = prompt("Contexte du lancer de dé", "")?.trim();
+      const values = await requestForm({
+        title: "Nouveau test de dé",
+        description: "Décris le contexte en une phrase. Le module Dés s’ouvrira ensuite.",
+        submitLabel: "Ouvrir les dés",
+        fields: [
+          {
+            name: "context",
+            label: "Contexte",
+            type: "textarea",
+            placeholder: "Ex. Éviter le vampire, traverser le pont, résister à la peur…",
+          },
+        ],
+      });
+      const context = values?.context.trim();
       if (!context) return;
       setPendingDiceContext({ nodeId, paragraph, context });
       setDiceOpen(true);
@@ -413,11 +591,26 @@ export default function CarnetApp() {
     if (kind === "item" || kind === "key" || kind === "spell") {
       const defaultIcon = kind === "key" ? "🔑" : kind === "spell" ? "🧙" : "🎒";
       const defaultKind: Category = kind === "spell" ? "Sorts" : "Objets";
-      const name = prompt(kind === "spell" ? "Nom du sort" : "Nom de l’objet")?.trim();
+      const values = await requestForm({
+        title: kind === "spell" ? "Sort lié au paragraphe" : kind === "key" ? "Clé liée au paragraphe" : "Objet lié au paragraphe",
+        description: `Cet élément sera ajouté à l’inventaire et lié au §${paragraph}.`,
+        fields: [
+          { name: "name", label: kind === "spell" ? "Nom du sort" : "Nom de l’objet" },
+          { name: "icon", label: "Icône ou emoji", value: defaultIcon },
+          {
+            name: "subtitle",
+            label: "Description",
+            type: "textarea",
+            value: kind === "key" ? "Objet clé" : `Trouvé au §${paragraph}`,
+          },
+          { name: "quantity", label: "Quantité", type: "number", value: "1" },
+        ],
+      });
+      const name = values?.name.trim();
       if (!name) return;
-      const icon = prompt("Icône ou emoji", defaultIcon)?.trim() || defaultIcon;
-      const subtitle = prompt("Description courte", kind === "key" ? "Objet clé" : "Trouvé au paragraphe")?.trim() || `Trouvé au §${paragraph}`;
-      const quantity = Math.max(1, numberFromPrompt("Quantité", 1));
+      const icon = values?.icon.trim() || defaultIcon;
+      const subtitle = values?.subtitle.trim() || `Trouvé au §${paragraph}`;
+      const quantity = Math.max(1, Number(values?.quantity) || 1);
       const item: Item = {
         id: uid(),
         name,
@@ -452,11 +645,21 @@ export default function CarnetApp() {
     }
 
     if (kind === "combat") {
-      const name = prompt("Nom du monstre")?.trim();
+      const values = await requestForm({
+        title: "Combat lié au paragraphe",
+        description: `Le monstre sera ajouté au module Combat et lié au §${paragraph}.`,
+        fields: [
+          { name: "name", label: "Nom du monstre", placeholder: "Ex. Vampire" },
+          { name: "skill", label: "Habileté", type: "number", value: "6" },
+          { name: "endurance", label: "Endurance", type: "number", value: "8" },
+          { name: "note", label: "Note", type: "textarea", value: `Rencontré au §${paragraph}` },
+        ],
+      });
+      const name = values?.name.trim();
       if (!name) return;
-      const skill = Math.max(0, numberFromPrompt("Habileté", 6));
-      const endurance = Math.max(1, numberFromPrompt("Endurance", 8));
-      const note = prompt("Note", `Rencontré au §${paragraph}`)?.trim() || `Rencontré au §${paragraph}`;
+      const skill = Math.max(0, Number(values?.skill) || 6);
+      const endurance = Math.max(1, Number(values?.endurance) || 8);
+      const note = values?.note.trim() || `Rencontré au §${paragraph}`;
       const monster: Monster = {
         id: uid(),
         name,
@@ -504,7 +707,13 @@ export default function CarnetApp() {
       secret: "Secret",
       danger: "Danger",
     };
-    const label = prompt("Description de l’événement", labels[kind])?.trim() || labels[kind];
+    const values = await requestForm({
+      title: "Événement lié au paragraphe",
+      fields: [
+        { name: "label", label: "Description", type: "textarea", value: labels[kind] },
+      ],
+    });
+    const label = values?.label.trim() || labels[kind];
     addJourneyEvent(nodeId, { id: uid(), kind, label, createdAt });
   };
 
@@ -702,6 +911,13 @@ export default function CarnetApp() {
             setPendingDiceContext(null);
           }}
           onRoll={addDiceRoll}
+        />
+      )}
+      {formModal && (
+        <ThemedFormModal
+          {...formModal}
+          onCancel={() => closeForm(null)}
+          onSubmit={(values) => closeForm(values)}
         />
       )}
     </main>
