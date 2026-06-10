@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { min-height: 100%; background: #070b0c; }
+body { color: #f7e6bd; }
+button, input, textarea { -webkit-tap-highlight-color: transparent; }
+
+.grimoire-bg {
+  background:
+    radial-gradient(circle at 10% -5%, rgba(217,164,65,.16), transparent 26rem),
+    radial-gradient(circle at 100% 0%, rgba(66,112,117,.13), transparent 28rem),
+    radial-gradient(circle at 50% 100%, rgba(159,91,36,.10), transparent 26rem),
+    linear-gradient(145deg, #070b0c 0%, #0b1113 45%, #080706 100%);
+}
+
+.gold-frame { position: relative; }
+.gold-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(145deg, rgba(242,213,138,.75), rgba(217,164,65,.18), rgba(242,213,138,.55));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.texture {
+  background-image:
+    linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.014) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
