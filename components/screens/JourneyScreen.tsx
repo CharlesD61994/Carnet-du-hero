@@ -141,24 +141,30 @@ export function JourneyScreen({
     active = false,
     dashed = false,
     onClick?: () => void,
-  ) => (
-    <button
-      type="button"
-      onClick={onClick}
-      data-current-node={active ? "true" : undefined}
-      className={`inline-flex max-w-full items-center gap-2 rounded-xl border px-3 py-2 text-left transition active:scale-[0.99] ${
-        active
-          ? "border-gold/70 bg-gold/15 text-parchment shadow-[0_0_18px_rgba(218,165,32,0.16)]"
-          : dashed
-            ? "border-dashed border-line/60 bg-black/10 text-muted"
-            : "border-line/70 bg-black/20 text-muted"
-      }`}
-    >
-      <span className="font-serif text-lg font-bold leading-none">§{paragraph}</span>
-      {active ? <span className="rounded-full bg-gold/15 px-2 py-1 text-[10px] uppercase tracking-widest text-gold2">actuel</span> : null}
-      {iconArea ? <span className="flex min-w-0 items-center gap-1 text-sm">{iconArea}</span> : null}
-    </button>
-  );
+  ) => {
+    const hasExtraContent = active || Boolean(iconArea);
+
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        data-current-node={active ? "true" : undefined}
+        className={`inline-flex max-w-full items-center gap-2 rounded-xl border px-3 py-2 transition active:scale-[0.99] ${
+          hasExtraContent ? "justify-between text-left" : "min-w-[4.5rem] justify-center text-center"
+        } ${
+          active
+            ? "border-gold/70 bg-gold/15 text-parchment shadow-[0_0_18px_rgba(218,165,32,0.16)]"
+            : dashed
+              ? "border-dashed border-line/60 bg-black/10 text-muted"
+              : "border-line/70 bg-black/20 text-muted"
+        }`}
+      >
+        <span className="font-serif text-lg font-bold leading-none">§{paragraph}</span>
+        {active ? <span className="rounded-full bg-gold/15 px-2 py-1 text-[10px] uppercase tracking-widest text-gold2">actuel</span> : null}
+        {iconArea ? <span className="flex min-w-0 items-center gap-1 text-sm">{iconArea}</span> : null}
+      </button>
+    );
+  };
 
   const renderChoiceLine = (choice: JourneyChoice) => {
     const status = choiceStatus(choice, currentNode, journey.nodes);
@@ -232,17 +238,15 @@ export function JourneyScreen({
     const isCurrent = node.id === journey.currentNodeId;
     const choices = node.choices ?? [];
     const events = node.events ?? [];
-    const icons = (
-      <>
-        {node.notes.trim() ? <span title="Note">📝</span> : null}
-        {events.slice(0, 4).map((event) => (
-          <span key={event.id} title={event.label}>{tagIcon(event.kind)}</span>
-        ))}
-        {node.tags.filter((tag) => !events.some((event) => event.kind === tag)).map((tag) => (
-          <span key={tag} title={tagLabel(tag)}>{tagIcon(tag)}</span>
-        ))}
-      </>
-    );
+    const iconItems: ReactNode[] = [];
+    if (node.notes.trim()) iconItems.push(<span key="note" title="Note">📝</span>);
+    for (const event of events.slice(0, 4)) {
+      iconItems.push(<span key={event.id} title={event.label}>{tagIcon(event.kind)}</span>);
+    }
+    for (const tag of node.tags.filter((tag) => !events.some((event) => event.kind === tag))) {
+      iconItems.push(<span key={tag} title={tagLabel(tag)}>{tagIcon(tag)}</span>);
+    }
+    const icons = iconItems.length ? <>{iconItems}</> : null;
 
     const choiceTargets = new Set(choices.map((choice) => choice.to));
     const orphanChildren = children.filter((child) => !choiceTargets.has(child.paragraph));
