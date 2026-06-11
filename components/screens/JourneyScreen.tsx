@@ -24,11 +24,14 @@ const tagIcon = (tag: JourneyTag) => TAGS.find((item) => item.id === tag)?.icon 
 const tagLabel = (tag: JourneyTag) => TAGS.find((item) => item.id === tag)?.label ?? tag;
 
 function formatVisitDate(value: string) {
+  if (!value) return "Non visité";
   try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Non visité";
     return new Intl.DateTimeFormat("fr-CA", {
       dateStyle: "medium",
       timeStyle: "short",
-    }).format(new Date(value));
+    }).format(date);
   } catch {
     return value;
   }
@@ -226,9 +229,16 @@ export function JourneyScreen({
       false,
       true,
       () => {
-        onGoToParagraph(choice.to);
-        setSelectedNode(null);
-        setTreeFullscreen(false);
+        setSelectedNode({
+          id: `unknown-${parentNode.id}-${choice.id}-${choice.to}`,
+          paragraph: choice.to,
+          parentId: parentNode.id,
+          notes: "",
+          tags: [],
+          events: [],
+          visitedAt: "",
+          choices: [],
+        });
       },
     );
   };
