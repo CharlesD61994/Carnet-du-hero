@@ -485,9 +485,22 @@ export function JourneyScreen({
                       key={choice.id}
                       type="button"
                       onClick={() => {
-                        setSelectedNode(null);
-                        setTreeFullscreen(false);
-                        onGoToParagraph(choice.to);
+                        const child = journey.nodes.find(
+                          (node) => node.parentId === selectedNode.id && node.paragraph === choice.to,
+                        );
+
+                        setSelectedNode(
+                          child ?? {
+                            id: `unknown-${selectedNode.id}-${choice.id}-${choice.to}`,
+                            paragraph: choice.to,
+                            parentId: selectedNode.id,
+                            notes: "",
+                            tags: [],
+                            events: [],
+                            visitedAt: "",
+                            choices: [],
+                          },
+                        );
                       }}
                       className="flex w-full items-center justify-between rounded-xl border border-line/70 bg-black/20 px-3 py-2 text-left active:scale-[0.99]"
                     >
