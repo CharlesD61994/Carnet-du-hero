@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Adventure, Category, DiceRoll, Item, JourneyEvent, JourneyNode, JourneyTag, Monster, NewAdventureData, Screen } from "@/lib/types";
+import type { Adventure, Category, CombatRound, DiceRoll, Item, JourneyEvent, JourneyNode, JourneyTag, Monster, NewAdventureData, Screen } from "@/lib/types";
 import { makeAdventureFromData, makeInitialJourney, starter, STORAGE, uid } from "@/lib/templates";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { CombatScreen } from "@/components/screens/CombatScreen";
@@ -378,8 +378,8 @@ export default function CarnetApp() {
       title: "Ajouter un monstre",
       fields: [
         { name: "name", label: "Nom", placeholder: "Ex. Vampire" },
-        { name: "skill", label: "Habileté", type: "number", value: "6" },
-        { name: "endurance", label: "Endurance", type: "number", value: "8" },
+        { name: "skill", label: "Stat d’attaque", type: "number", value: "6" },
+        { name: "endurance", label: "Vie", type: "number", value: "8" },
         { name: "note", label: "Note", type: "textarea" },
       ],
     });
@@ -411,9 +411,9 @@ export default function CarnetApp() {
       title: "Modifier le monstre",
       fields: [
         { name: "name", label: "Nom", value: monster.name },
-        { name: "skill", label: "Habileté", type: "number", value: String(monster.skill) },
-        { name: "maxEndurance", label: "Endurance maximale", type: "number", value: String(monster.maxEndurance) },
-        { name: "endurance", label: "Endurance actuelle", type: "number", value: String(monster.endurance) },
+        { name: "skill", label: "Stat d’attaque", type: "number", value: String(monster.skill) },
+        { name: "maxEndurance", label: "Vie maximale", type: "number", value: String(monster.maxEndurance) },
+        { name: "endurance", label: "Vie actuelle", type: "number", value: String(monster.endurance) },
         { name: "note", label: "Note", type: "textarea", value: monster.note },
       ],
     });
@@ -673,6 +673,7 @@ export default function CarnetApp() {
         sourceParagraph: paragraph,
         sourceNodeId: nodeId,
         combatResult: "pending",
+        combatLog: [],
       };
       setSelected({
         monsters: [...selected.monsters, monster],
@@ -778,6 +779,95 @@ export default function CarnetApp() {
     });
   };
 
+
+  const validateCombatRound = (monsterId: string, round: CombatRound) => {
+    if (!selected) return;
+
+    const monster = selected.monsters.find((candidate) => candidate.id === monsterId);
+    if (!monster) return;
+
+    const lifeStat =
+      selected.stats.find((stat) => /endurance|vie|vitalité|vitalite|santé|sante|pv/i.test(stat.name)) ??
+      selected.stats[1] ??
+      selected.stats[0];
+
+    const nextMonsterEndurance = Math.max(0, monster.endurance - round.damageToMonster);
+    const nextHeroLife = lifeStat
+      ? Math.max(0, lifeStat.current - round.damageToHero)
+      : 0;
+    const combatResult =
+      nextHeroLife <= 0
+        ? "defeat"
+        : nextMonsterEndurance <= 0
+          ? "victory"
+          : monster.combatResult ?? "pending";
+
+    const heroDiceRoll: DiceRoll = {
+      id: uid(),
+      createdAt: round.createdAt,
+      sides: round.diceSides,
+      count: round.diceCount,
+      rolls: round.heroRolls,
+      total: round.heroRolls.reduce((total, value) => total + value, 0),
+      context: `Assaut héros contre ${monster.name}`,
+      sourceParagraph: monster.sourceParagraph,
+      sourceNodeId: monster.sourceNodeId,
+    };
+
+    const monsterDiceRoll: DiceRoll = {
+      id: uid(),
+      createdAt: round.createdAt,
+      sides: round.diceSides,
+      count: round.diceCount,
+      rolls: round.monsterRolls,
+      total: round.monsterRolls.reduce((total, value) => total + value, 0),
+      context: `Assaut ${monster.name}`,
+      sourceParagraph: monster.sourceParagraph,
+      sourceNodeId: monster.sourceNodeId,
+    };
+
+    setSelected({
+      diceHistory: [heroDiceRoll, monsterDiceRoll, ...(selected.diceHistory ?? [])].slice(0, 100),
+      stats: lifeStat
+        ? selected.stats.map((stat) =>
+            stat.id === lifeStat.id ? { ...stat, current: nextHeroLife } : stat,
+          )
+        : selected.stats,
+      monsters: selected.monsters.map((candidate) =>
+        candidate.id === monsterId
+          ? {
+              ...candidate,
+              endurance: nextMonsterEndurance,
+              combatResult,
+              combatLog: [round, ...(candidate.combatLog ?? [])],
+            }
+          : candidate,
+      ),
+      journey: selected.journey
+        ? {
+            ...selected.journey,
+            nodes: selected.journey.nodes.map((node) => ({
+              ...node,
+              events: (node.events ?? []).map((event) =>
+                event.refId === monsterId && event.kind === "combat"
+                  ? {
+                      ...event,
+                      result:
+                        combatResult === "victory"
+                          ? "Victoire"
+                          : combatResult === "defeat"
+                            ? "Défaite"
+                            : "En cours",
+                    }
+                  : event,
+              ),
+              choices: node.choices ?? [],
+            })),
+          }
+        : selected.journey,
+    });
+  };
+
   const roll = () =>
     setDice(Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 2);
 
@@ -846,12 +936,11 @@ export default function CarnetApp() {
             onHeroClick={() => setScreen("sheet")}
             onLibrary={() => setScreen("home")}
             onOptions={() => setScreen("more")}
-            dice={dice}
-            roll={roll}
             addMonster={addMonster}
             editMonster={editMonster}
             deleteMonster={deleteMonster}
             updateMonsterEndurance={updateMonsterEndurance}
+            validateCombatRound={validateCombatRound}
           />
         )}
         {screen === "diceHistory" && (

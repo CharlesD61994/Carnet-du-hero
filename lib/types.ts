@@ -39,6 +39,23 @@ export type Item = {
   sourceNodeId?: string;
 };
 
+export type CombatRound = {
+  id: string;
+  createdAt: string;
+  heroStatName: string;
+  monsterStatName: string;
+  diceCount: number;
+  diceSides: number;
+  heroRolls: number[];
+  monsterRolls: number[];
+  heroScore: number;
+  monsterScore: number;
+  winner: "hero" | "monster" | "tie";
+  damageToMonster: number;
+  damageToHero: number;
+  note?: string;
+};
+
 export type Monster = {
   id: string;
   name: string;
@@ -52,6 +69,7 @@ export type Monster = {
   sourceParagraph?: number;
   sourceNodeId?: string;
   combatResult?: "pending" | "victory" | "defeat";
+  combatLog?: CombatRound[];
 };
 
 export type Bookmark = {
