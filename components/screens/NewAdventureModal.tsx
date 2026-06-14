@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { DiceConfig, NewAdventureData, System } from "@/lib/types";
 import { defaultDiceConfigForSystem, systems } from "@/lib/templates";
 
-const dieOptions: DiceConfig["sides"][] = [6, 10, 12, 20];
+const dieOptions: DiceConfig["sides"][] = [6, 8, 10, 12, 20];
 
 export function NewAdventureModal({
   onCancel,
@@ -100,7 +100,7 @@ export function NewAdventureModal({
               Choisis le dé utilisé par cette aventure. Pendant la partie, le bouton Dés permettra seulement de lancer un dé ou plusieurs dés de ce type.
             </p>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               {dieOptions.map((sides) => (
                 <button
                   key={sides}

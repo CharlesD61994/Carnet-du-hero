@@ -786,53 +786,69 @@ export default function CarnetApp() {
     const monster = selected.monsters.find((candidate) => candidate.id === monsterId);
     if (!monster) return;
 
-    const lifeStat =
-      selected.stats.find((stat) => /endurance|vie|vitalité|vitalite|santé|sante|pv/i.test(stat.name)) ??
-      selected.stats[1] ??
-      selected.stats[0];
+    let nextStats = selected.stats;
+    let nextResources = selected.resources;
+    let nextMonsterEndurance = monster.endurance;
 
-    const nextMonsterEndurance = Math.max(0, monster.endurance - round.damageToMonster);
-    const nextHeroLife = lifeStat
-      ? Math.max(0, lifeStat.current - round.damageToHero)
-      : 0;
+    round.actions.forEach((action) => {
+      if (action.type !== "stat") return;
+
+      if (action.target === "monster") {
+        nextMonsterEndurance = Math.max(
+          0,
+          Math.min(monster.maxEndurance, nextMonsterEndurance + action.delta),
+        );
+        return;
+      }
+
+      if (action.statCollection === "resources") {
+        nextResources = nextResources.map((resource) =>
+          resource.id === action.statId || resource.name === action.statName
+            ? { ...resource, current: Math.max(0, resource.current + action.delta) }
+            : resource,
+        );
+        return;
+      }
+
+      nextStats = nextStats.map((stat) =>
+        stat.id === action.statId || stat.name === action.statName
+          ? { ...stat, current: Math.max(0, stat.current + action.delta) }
+          : stat,
+      );
+    });
+
+    const lifeStat =
+      nextStats.find((stat) => /endurance|vie|vitalité|vitalite|santé|sante|pv/i.test(stat.name)) ??
+      nextStats[1] ??
+      nextStats[0];
+
     const combatResult =
-      nextHeroLife <= 0
+      (lifeStat?.current ?? 1) <= 0
         ? "defeat"
         : nextMonsterEndurance <= 0
           ? "victory"
           : monster.combatResult ?? "pending";
 
-    const heroDiceRoll: DiceRoll = {
+    const primaryRoll: DiceRoll = {
       id: uid(),
       createdAt: round.createdAt,
       sides: round.diceSides,
       count: round.diceCount,
-      rolls: round.heroRolls,
-      total: round.heroRolls.reduce((total, value) => total + value, 0),
-      context: `Assaut héros contre ${monster.name}`,
+      rolls: round.rolls,
+      total: round.total,
+      context: round.context ?? `Combat contre ${monster.name}`,
       sourceParagraph: monster.sourceParagraph,
       sourceNodeId: monster.sourceNodeId,
     };
 
-    const monsterDiceRoll: DiceRoll = {
-      id: uid(),
-      createdAt: round.createdAt,
-      sides: round.diceSides,
-      count: round.diceCount,
-      rolls: round.monsterRolls,
-      total: round.monsterRolls.reduce((total, value) => total + value, 0),
-      context: `Assaut ${monster.name}`,
-      sourceParagraph: monster.sourceParagraph,
-      sourceNodeId: monster.sourceNodeId,
-    };
+    const extraRolls: DiceRoll[] = round.actions
+      .filter((action) => action.type === "dice")
+      .map((action) => action.roll);
 
     setSelected({
-      diceHistory: [heroDiceRoll, monsterDiceRoll, ...(selected.diceHistory ?? [])].slice(0, 100),
-      stats: lifeStat
-        ? selected.stats.map((stat) =>
-            stat.id === lifeStat.id ? { ...stat, current: nextHeroLife } : stat,
-          )
-        : selected.stats,
+      diceHistory: [primaryRoll, ...extraRolls, ...(selected.diceHistory ?? [])].slice(0, 100),
+      stats: nextStats,
+      resources: nextResources,
       monsters: selected.monsters.map((candidate) =>
         candidate.id === monsterId
           ? {
@@ -857,7 +873,9 @@ export default function CarnetApp() {
                           ? "Victoire"
                           : combatResult === "defeat"
                             ? "Défaite"
-                            : "En cours",
+                            : combatResult === "interrupted"
+                              ? "Interrompu"
+                              : "En cours",
                     }
                   : event,
               ),
@@ -866,6 +884,55 @@ export default function CarnetApp() {
           }
         : selected.journey,
     });
+
+    if (combatResult === "victory" || combatResult === "defeat") {
+      setScreen("journey");
+    }
+  };
+
+  const quitCombat = (monsterId: string, reason: string) => {
+    if (!selected) return;
+    const monster = selected.monsters.find((candidate) => candidate.id === monsterId);
+    const now = todayIso();
+
+    const exitRound: CombatRound = {
+      id: uid(),
+      createdAt: now,
+      diceCount: 0,
+      diceSides: selected.diceConfig?.sides ?? 6,
+      rolls: [],
+      total: 0,
+      context: monster ? `Combat quitté contre ${monster.name}` : "Combat quitté",
+      actions: [{ id: uid(), type: "note", note: reason }],
+    };
+
+    setSelected({
+      monsters: selected.monsters.map((candidate) =>
+        candidate.id === monsterId
+          ? {
+              ...candidate,
+              combatResult: "interrupted",
+              note: candidate.note ? `${candidate.note}\n${reason}` : reason,
+              combatLog: [exitRound, ...(candidate.combatLog ?? [])],
+            }
+          : candidate,
+      ),
+      journey: selected.journey
+        ? {
+            ...selected.journey,
+            nodes: selected.journey.nodes.map((node) => ({
+              ...node,
+              events: (node.events ?? []).map((event) =>
+                event.refId === monsterId && event.kind === "combat"
+                  ? { ...event, result: "Interrompu" }
+                  : event,
+              ),
+              choices: node.choices ?? [],
+            })),
+          }
+        : selected.journey,
+    });
+    setScreen("journey");
   };
 
   const roll = () =>
@@ -936,11 +1003,13 @@ export default function CarnetApp() {
             onHeroClick={() => setScreen("sheet")}
             onLibrary={() => setScreen("home")}
             onOptions={() => setScreen("more")}
+            onReturnToJourney={() => setScreen("journey")}
             addMonster={addMonster}
             editMonster={editMonster}
             deleteMonster={deleteMonster}
             updateMonsterEndurance={updateMonsterEndurance}
             validateCombatRound={validateCombatRound}
+            quitCombat={quitCombat}
           />
         )}
         {screen === "diceHistory" && (

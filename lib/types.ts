@@ -39,21 +39,45 @@ export type Item = {
   sourceNodeId?: string;
 };
 
+export type CombatAction =
+  | {
+      id: string;
+      type: "stat";
+      target: "hero" | "monster";
+      statId?: string;
+      statName: string;
+      statCollection?: "stats" | "resources";
+      delta: number;
+      note?: string;
+    }
+  | {
+      id: string;
+      type: "item";
+      itemId?: string;
+      itemName: string;
+      note?: string;
+    }
+  | {
+      id: string;
+      type: "note";
+      note: string;
+    }
+  | {
+      id: string;
+      type: "dice";
+      roll: DiceRoll;
+      note?: string;
+    };
+
 export type CombatRound = {
   id: string;
   createdAt: string;
-  heroStatName: string;
-  monsterStatName: string;
   diceCount: number;
   diceSides: number;
-  heroRolls: number[];
-  monsterRolls: number[];
-  heroScore: number;
-  monsterScore: number;
-  winner: "hero" | "monster" | "tie";
-  damageToMonster: number;
-  damageToHero: number;
-  note?: string;
+  rolls: number[];
+  total: number;
+  context?: string;
+  actions: CombatAction[];
 };
 
 export type Monster = {
@@ -68,7 +92,7 @@ export type Monster = {
   note: string;
   sourceParagraph?: number;
   sourceNodeId?: string;
-  combatResult?: "pending" | "victory" | "defeat";
+  combatResult?: "pending" | "victory" | "defeat" | "interrupted";
   combatLog?: CombatRound[];
 };
 
@@ -79,7 +103,7 @@ export type Bookmark = {
 };
 
 export type DiceConfig = {
-  sides: 6 | 10 | 12 | 20;
+  sides: 6 | 8 | 10 | 12 | 20;
   mode: "single" | "multiple";
   count: number;
 };
