@@ -9,6 +9,7 @@ import { Panel } from "@/components/ui/Panel";
 import { uid } from "@/lib/templates";
 
 type CombatDraft = CombatRound;
+type RollingPreview = { heroRolls: number[]; enemyRolls: number[] };
 
 type DialogState =
   | { type: "roll"; monster: Monster; action?: boolean }
@@ -101,6 +102,7 @@ export function CombatScreen({
   const diceConfig = adventure.diceConfig ?? { sides: 6, mode: "multiple", count: 2 };
   const diceSides = diceConfig.sides ?? 6;
   const [pending, setPending] = useState<Record<string, CombatDraft>>({});
+  const [rolling, setRolling] = useState<Record<string, RollingPreview>>({});
   const [dialog, setDialog] = useState<DialogState>(null);
   const [combatTab, setCombatTab] = useState<"active" | "history">("active");
   const activeMonsters = adventure.monsters.filter((monster) => !monster.combatResult || monster.combatResult === "pending");
@@ -114,9 +116,7 @@ export function CombatScreen({
     [adventure.stats, adventure.resources],
   );
 
-  const startRoll = (monster: Monster, count: number) => {
-    const heroRolls = Array.from({ length: count }, () => rollDie(diceSides));
-    const enemyRolls = Array.from({ length: count }, () => rollDie(diceSides));
+  const finishRoll = (monster: Monster, count: number, heroRolls: number[], enemyRolls: number[]) => {
     const heroDiceTotal = sum(heroRolls);
     const enemyDiceTotal = sum(enemyRolls);
     const heroSkill = attackStat?.current ?? 0;
@@ -192,7 +192,38 @@ export function CombatScreen({
         outcome,
       },
     }));
+    setRolling((current) => {
+      const copy = { ...current };
+      delete copy[monster.id];
+      return copy;
+    });
     setDialog(null);
+  };
+
+  const startRoll = (monster: Monster, count: number) => {
+    if (rolling[monster.id]) return;
+    setPending((current) => {
+      const copy = { ...current };
+      delete copy[monster.id];
+      return copy;
+    });
+
+    let ticks = 0;
+    const nextPreview = () => ({
+      heroRolls: Array.from({ length: count }, () => rollDie(diceSides)),
+      enemyRolls: Array.from({ length: count }, () => rollDie(diceSides)),
+    });
+    setRolling((current) => ({ ...current, [monster.id]: nextPreview() }));
+    const interval = window.setInterval(() => {
+      ticks += 1;
+      setRolling((current) => ({ ...current, [monster.id]: nextPreview() }));
+      if (ticks >= 7) {
+        window.clearInterval(interval);
+        const finalHeroRolls = Array.from({ length: count }, () => rollDie(diceSides));
+        const finalEnemyRolls = Array.from({ length: count }, () => rollDie(diceSides));
+        finishRoll(monster, count, finalHeroRolls, finalEnemyRolls);
+      }
+    }, 90);
   };
 
   const tryLuckInCombat = (monster: Monster) => {
@@ -392,6 +423,7 @@ export function CombatScreen({
               monster={m}
               adventure={adventure}
               round={round}
+              rollingPreview={rolling[m.id]}
               diceSides={diceSides}
               luckStat={luckStat}
               lifeStat={lifeStat}
@@ -403,6 +435,7 @@ export function CombatScreen({
               cancelTurn={cancelTurn}
               confirmTurn={confirmTurn}
               tryLuckInCombat={tryLuckInCombat}
+              startRoll={startRoll}
             />
           );
         })}
@@ -489,6 +522,7 @@ function CombatMonsterCard({
   monster: m,
   adventure,
   round,
+  rollingPreview,
   diceSides,
   luckStat,
   lifeStat,
@@ -500,10 +534,12 @@ function CombatMonsterCard({
   cancelTurn,
   confirmTurn,
   tryLuckInCombat,
+  startRoll,
 }: {
   monster: Monster;
   adventure: Adventure;
   round?: CombatDraft;
+  rollingPreview?: RollingPreview;
   diceSides: number;
   luckStat?: Stat;
   lifeStat?: Stat;
@@ -515,132 +551,120 @@ function CombatMonsterCard({
   cancelTurn: (monsterId: string) => void;
   confirmTurn: (monsterId: string) => void;
   tryLuckInCombat: (monster: Monster) => void;
+  startRoll: (monster: Monster, count: number) => void;
 }) {
-  const attackStat = findAttackStat(adventure);
-  const heroLabel = adventure.hero.name || "Vous";
   const [toolsOpen, setToolsOpen] = useState(false);
   const canTryLuck = Boolean(round && luckStat && round.outcome !== "tie" && !alreadyTriedLuck(round));
   const luckAttempt = round?.actions.find((action) => action.type === "dice" && action.note?.startsWith("Chance en combat"));
   const damageActions = round?.actions.filter((action) => action.type === "stat") ?? [];
-  const extraActions = round?.actions.filter((action) => !damageActionIds(round).includes(action.id)) ?? [];
-  const resultTone =
-    round?.outcome === "hero"
-      ? "border-emerald-500/40 bg-emerald-950/35 text-emerald-100"
-      : round?.outcome === "enemy"
-        ? "border-red-500/40 bg-red-950/35 text-red-100"
-        : "border-gold/25 bg-gold/10 text-gold2";
+  const utilityActions = round?.actions.filter((action) => !damageActionIds(round).includes(action.id)) ?? [];
+  const monsterLifeRatio = Math.max(0, Math.min(100, (m.endurance / Math.max(1, m.maxEndurance)) * 100));
+  const isRolling = Boolean(rollingPreview);
+  const previewHero = rollingPreview?.heroRolls ?? [];
+  const previewEnemy = rollingPreview?.enemyRolls ?? [];
 
   const outcomeTitle =
     round?.outcome === "hero"
-      ? "Vous remportez l’assaut"
+      ? "Assaut remporté"
       : round?.outcome === "enemy"
-        ? `${m.name} remporte l’assaut`
+        ? "Assaut perdu"
         : round?.outcome === "tie"
           ? "Égalité"
           : "";
 
-  const outcomeDetail =
+  const outcomeClass =
     round?.outcome === "hero"
-      ? `${m.name} perd 2 Endurance, sauf si vous tentez votre Chance.`
+      ? "border-emerald-500/40 bg-emerald-950/30 text-emerald-100"
       : round?.outcome === "enemy"
-        ? `${heroLabel} perd 2 Endurance, sauf si vous tentez votre Chance.`
-        : round?.outcome === "tie"
-          ? "Aucun dégât. Vous pouvez lancer un nouvel assaut."
-          : "";
+        ? "border-red-500/40 bg-red-950/30 text-red-100"
+        : "border-gold/30 bg-gold/10 text-gold2";
 
   return (
     <Panel className="overflow-hidden p-0">
-      <div className="space-y-4 p-4">
-        <div className="rounded-[1.75rem] border border-gold/25 bg-gradient-to-br from-black/50 via-night to-black/25 p-4 shadow-inner">
-          <div className="flex items-center gap-4">
-            <div className="grid h-20 w-20 shrink-0 place-items-center rounded-3xl border border-gold/25 bg-gradient-to-br from-red-950/60 via-black to-night text-4xl shadow-inner">
+      <div className="space-y-3 p-3">
+        <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-black/45 via-night to-black/20 p-3 shadow-inner">
+          <div className="flex items-center gap-3">
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-gold/25 bg-black/35 text-3xl">
               👺
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-serif text-2xl font-bold text-parchment">{m.name}</p>
-                  <p className="mt-1 text-xs text-muted">
-                    {m.sourceParagraph ? `§ ${m.sourceParagraph} · ` : ""}Combat v2.1
-                  </p>
+                  <p className="truncate font-serif text-xl font-bold text-parchment">{m.name}</p>
+                  <p className="mt-0.5 text-[0.68rem] text-muted">Combat v3 · {m.sourceParagraph ? `§${m.sourceParagraph}` : "sans paragraphe"}</p>
                 </div>
-                <span className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold2">
-                  En cours
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setToolsOpen((value) => !value)}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-black/25 text-lg text-muted active:scale-[.98]"
+                  aria-label="Outils du combat"
+                >
+                  ⋯
+                </button>
               </div>
-              <div className="mt-4">
-                <div className="mb-2 flex items-center justify-between text-xs text-muted">
-                  <span>Endurance</span>
-                  <span className="font-black text-parchment">{m.endurance} / {m.maxEndurance}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-black/50 ring-1 ring-line/60">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-red-500 to-gold"
-                    style={{ width: `${Math.max(0, Math.min(100, (m.endurance / Math.max(1, m.maxEndurance)) * 100))}%` }}
-                  />
-                </div>
+              <div className="mt-3 flex items-center gap-2 text-xs text-muted">
+                <span className="font-bold text-parchment">❤️ {m.endurance}/{m.maxEndurance}</span>
+                <span>⚔️ {m.skill}</span>
+                <span>💥 2</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/50 ring-1 ring-line/60">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-red-500 to-gold"
+                  style={{ width: `${monsterLifeRatio}%` }}
+                />
               </div>
             </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-            <StatPill label="Habileté" value={m.skill} />
-            <StatPill label="Dégâts" value="2" />
-            <StatPill label="Assauts" value={(m.combatLog ?? []).length} />
           </div>
         </div>
 
-        {m.note && (
-          <p className="rounded-xl border border-line/60 bg-black/20 p-3 text-sm leading-6 text-muted">{m.note}</p>
-        )}
+        {toolsOpen ? (
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-line/70 bg-black/20 p-2">
+            <button onClick={() => setDialog({ type: "quit", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-muted active:scale-[.99]">Fuir / quitter</button>
+            <button onClick={() => editMonster(m)} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2 active:scale-[.99]">Modifier</button>
+            <button onClick={() => updateMonsterEndurance(m.id, -1)} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">− Vie</button>
+            <button onClick={() => updateMonsterEndurance(m.id, 1)} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">+ Vie</button>
+            {round ? (
+              <>
+                <button onClick={() => setDialog({ type: "item", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">Objet</button>
+                <button onClick={() => setDialog({ type: "stat", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">Stat</button>
+                <button onClick={() => setDialog({ type: "note", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">Note</button>
+                <button onClick={() => setDialog({ type: "roll", monster: m, action: true })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">Jet secondaire</button>
+              </>
+            ) : null}
+            <button onClick={() => deleteMonster(m.id)} className="col-span-2 rounded-xl border border-red-900/60 bg-red-950/20 px-3 py-3 text-sm text-red-200">Supprimer</button>
+          </div>
+        ) : null}
 
         {!round ? (
-          <div className="space-y-3">
-            <div className="rounded-2xl border border-line/60 bg-black/20 p-3">
-              <p className="font-serif text-xs uppercase tracking-[0.22em] text-gold2">Vos statistiques de combat</p>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <StatPill label="Attaque" value={attackStat?.current ?? 0} />
-                <StatPill label={lifeStat?.name ?? "Vie"} value={`${lifeStat?.current ?? 0}/${lifeStat?.max ?? lifeStat?.current ?? 0}`} />
-                <StatPill label="Chance" value={luckStat ? `${luckStat.current}/${luckStat.max ?? luckStat.current}` : "—"} />
+          <div className="rounded-[1.5rem] border border-line/70 bg-black/20 p-3">
+            <p className="text-center font-serif text-xs uppercase tracking-[0.28em] text-gold2">Assaut</p>
+
+            {isRolling ? (
+              <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <RollingDicePreview title="Vous" rolls={previewHero} tone="hero" />
+                <div className="font-serif text-sm font-bold uppercase tracking-widest text-gold2">VS</div>
+                <RollingDicePreview title={m.name} rolls={previewEnemy} tone="enemy" />
               </div>
-            </div>
-
-            <button
-              onClick={() => setDialog({ type: "roll", monster: m })}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-gold/60 bg-gradient-to-b from-gold/35 to-gold/15 px-4 py-5 font-serif text-lg font-bold uppercase tracking-wide text-gold2 shadow-lg active:scale-[.99]"
-            >
-              <Swords size={21} />
-              Lancer l’assaut
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setToolsOpen((value) => !value)}
-              className="w-full rounded-xl border border-line bg-black/20 px-4 py-3 text-sm font-semibold text-muted"
-            >
-              {toolsOpen ? "Masquer les outils" : "Outils du combat"}
-            </button>
-
-            {toolsOpen ? (
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => setDialog({ type: "quit", monster: m })} className="rounded-xl border border-line bg-black/20 px-4 py-3 text-sm text-muted active:scale-[.99]">Fuir / quitter</button>
-                <button onClick={() => editMonster(m)} className="rounded-xl border border-line bg-black/20 px-4 py-3 text-sm text-gold2 active:scale-[.99]">Modifier</button>
-                <button onClick={() => updateMonsterEndurance(m.id, -1)} className="rounded-xl border border-line bg-black/20 px-4 py-3 text-sm text-gold2">− Vie</button>
-                <button onClick={() => updateMonsterEndurance(m.id, 1)} className="rounded-xl border border-line bg-black/20 px-4 py-3 text-sm text-gold2">+ Vie</button>
-                <button onClick={() => deleteMonster(m.id)} className="col-span-2 rounded-xl border border-red-900/60 bg-red-950/20 px-4 py-3 text-sm text-red-200">Supprimer</button>
-              </div>
-            ) : null}
+            ) : (
+              <button
+                onClick={() => startRoll(m, 2)}
+                className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl border border-gold/60 bg-gradient-to-b from-gold/35 to-gold/15 px-4 py-5 font-serif text-lg font-bold uppercase tracking-wide text-gold2 shadow-lg active:scale-[.99]"
+              >
+                <Swords size={21} />
+                Lancer l’assaut
+              </button>
+            )}
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="rounded-[1.75rem] border border-gold/20 bg-black/25 p-4 shadow-inner">
-              <p className="text-center font-serif text-xs uppercase tracking-[0.26em] text-gold2">Résultat de l’assaut</p>
-              <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
+          <div className="space-y-3">
+            <div className="rounded-[1.5rem] border border-line/70 bg-black/20 p-3">
+              <p className="text-center font-serif text-xs uppercase tracking-[0.28em] text-gold2">Assaut</p>
+              <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
                 <DiceResultCard
                   title="Vous"
                   rolls={round.heroRolls ?? round.rolls}
                   diceTotal={round.heroDiceTotal ?? round.total}
-                  bonusLabel={attackStat?.name ?? "Habileté"}
+                  bonusLabel="Habileté"
                   bonus={round.heroSkill ?? 0}
                   total={round.heroAttackTotal ?? round.total}
                   tone="hero"
@@ -657,42 +681,44 @@ function CombatMonsterCard({
                 />
               </div>
               {outcomeTitle ? (
-                <div className={`mt-4 rounded-2xl border px-3 py-4 text-center ${resultTone}`}>
-                  <p className="font-serif text-xl font-black uppercase tracking-wide">{outcomeTitle}</p>
-                  <p className="mt-2 text-sm leading-5">{outcomeDetail}</p>
+                <div className={`mt-3 rounded-2xl border px-3 py-3 text-center ${outcomeClass}`}>
+                  <p className="font-serif text-lg font-black uppercase tracking-wide">{outcomeTitle}</p>
+                  {round.outcome === "tie" ? (
+                    <p className="mt-1 text-xs text-muted">Aucun dégât. Lancez un nouvel assaut.</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-muted">Choisissez si vous tentez votre Chance avant d’appliquer l’impact.</p>
+                  )}
                 </div>
               ) : null}
             </div>
 
             {round.outcome !== "tie" ? (
-              <div className="rounded-[1.5rem] border border-gold/30 bg-gold/10 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-gold/40 bg-black/25 text-2xl">✦</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-serif text-base font-bold uppercase tracking-wide text-gold2">Tenter sa Chance ?</p>
-                    <p className="mt-1 text-xs leading-5 text-muted">
-                      Cette décision se prend maintenant, après l’assaut, avant l’application finale des dégâts.
-                    </p>
-                    {luckAttempt ? (
-                      <p className="mt-3 rounded-xl border border-line/60 bg-black/25 p-3 text-xs leading-5 text-parchment">{actionSummary(luckAttempt)}</p>
-                    ) : null}
+              <div className="rounded-2xl border border-gold/30 bg-gold/10 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-serif text-sm font-bold uppercase tracking-wide text-gold2">Tenter sa Chance ?</p>
+                    <p className="mt-1 text-xs text-muted">Après l’assaut, avant les dégâts finaux.</p>
                   </div>
+                  {luckAttempt ? <span className="rounded-full border border-line bg-black/20 px-2 py-1 text-xs text-parchment">Fait</span> : null}
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-2">
+                {luckAttempt ? (
+                  <p className="mt-2 rounded-xl border border-line/60 bg-black/25 p-2 text-xs leading-5 text-parchment">{actionSummary(luckAttempt)}</p>
+                ) : null}
+                <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     disabled={!canTryLuck}
                     onClick={() => tryLuckInCombat(m)}
-                    className={`rounded-xl border px-3 py-4 text-sm font-bold ${canTryLuck ? "border-gold/50 bg-gold/25 text-gold2" : "border-line bg-black/20 text-muted opacity-60"}`}
+                    className={`rounded-xl border px-3 py-3 text-sm font-bold ${canTryLuck ? "border-gold/50 bg-gold/25 text-gold2" : "border-line bg-black/20 text-muted opacity-60"}`}
                   >
-                    Tenter
+                    Oui
                   </button>
                   <button
                     type="button"
                     onClick={() => confirmTurn(m.id)}
-                    className="rounded-xl border border-line bg-black/20 px-3 py-4 text-sm font-bold text-parchment"
+                    className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm font-bold text-parchment"
                   >
-                    Appliquer
+                    Non / appliquer
                   </button>
                 </div>
               </div>
@@ -700,49 +726,35 @@ function CombatMonsterCard({
 
             <div className="rounded-2xl border border-line/70 bg-black/20 p-3">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="font-serif text-xs uppercase tracking-wide text-gold2">Impact à appliquer</h3>
-                {damageActions.length > 0 ? <span className="text-xs text-muted">{damageActions.length} effet</span> : null}
+                <h3 className="font-serif text-xs uppercase tracking-wide text-gold2">Impact</h3>
+                <button onClick={() => setToolsOpen((value) => !value)} className="text-xs text-muted">Outils</button>
               </div>
-              <div className="mt-2 space-y-2">
-                {damageActions.length === 0 ? (
-                  <p className="text-sm text-muted">Aucun dégât pour cet assaut.</p>
-                ) : (
-                  damageActions.map((action) => (
-                    <div key={action.id} className="rounded-xl border border-line/60 bg-black/25 p-3 text-xs leading-5 text-muted">
-                      {actionSummary(action)}
+              {damageActions.length === 0 ? (
+                <p className="mt-2 text-xs text-muted">Aucun dégât à appliquer.</p>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {damageActions.map((action) => (
+                    <div key={action.id} className="flex items-start justify-between gap-2 rounded-xl border border-line/60 bg-black/25 p-2 text-xs leading-5 text-parchment">
+                      <span>{actionSummary(action)}</span>
+                      <button onClick={() => removeAction(m.id, action.id)} className="shrink-0 text-red-200">×</button>
                     </div>
-                  ))
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setToolsOpen((value) => !value)}
-              className="w-full rounded-xl border border-line bg-black/20 px-4 py-3 text-sm font-semibold text-muted"
-            >
-              {toolsOpen ? "Masquer les outils avancés" : "Outils avancés"}
-            </button>
-
-            {toolsOpen ? (
-              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-line/60 bg-black/15 p-2">
-                <button onClick={() => setDialog({ type: "stat", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">❤️ Ajuster stat</button>
-                <button onClick={() => setDialog({ type: "item", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">🎒 Objet</button>
-                <button onClick={() => setDialog({ type: "note", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">📝 Note</button>
-                <button onClick={() => setDialog({ type: "roll", monster: m, action: true })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">🎲 Jet secondaire</button>
-              </div>
-            ) : null}
-
-            {extraActions.length > 0 ? (
-              <div className="space-y-2">
-                <h3 className="font-serif text-xs uppercase tracking-wide text-gold2">Journal de l’assaut</h3>
-                {extraActions.map((action) => (
-                  <div key={action.id} className="flex items-start justify-between gap-2 rounded-xl border border-line/60 bg-black/25 p-3 text-xs leading-5 text-muted">
-                    <span>{actionSummary(action)}</span>
-                    <button onClick={() => removeAction(m.id, action.id)} className="shrink-0 text-red-200">×</button>
-                  </div>
-                ))}
-              </div>
+            {utilityActions.length > 0 ? (
+              <details className="rounded-2xl border border-line/70 bg-black/20 p-3">
+                <summary className="cursor-pointer font-serif text-xs uppercase tracking-wide text-gold2">Journal de l’assaut</summary>
+                <div className="mt-3 space-y-2">
+                  {utilityActions.map((action) => (
+                    <div key={action.id} className="flex items-start justify-between gap-2 rounded-xl border border-line/60 bg-black/25 p-2 text-xs leading-5 text-muted">
+                      <span>{actionSummary(action)}</span>
+                      <button onClick={() => removeAction(m.id, action.id)} className="shrink-0 text-red-200">×</button>
+                    </div>
+                  ))}
+                </div>
+              </details>
             ) : null}
 
             <div className="grid grid-cols-2 gap-2">
@@ -752,16 +764,37 @@ function CombatMonsterCard({
           </div>
         )}
 
-        {(m.combatLog ?? []).length > 0 && (
-          <div className="space-y-2">
-            <h3 className="font-serif text-xs uppercase tracking-wide text-gold2">Derniers assauts</h3>
-            {(m.combatLog ?? []).slice(0, 3).map((entry, index) => (
-              <RoundHistoryLine key={entry.id} entry={entry} monsterName={m.name} number={(m.combatLog ?? []).length - index} />
-            ))}
-          </div>
-        )}
+        {(m.combatLog ?? []).length > 0 ? (
+          <details className="rounded-2xl border border-line/70 bg-black/20 p-3">
+            <summary className="cursor-pointer font-serif text-xs uppercase tracking-wide text-gold2">Historique du combat</summary>
+            <div className="mt-3 space-y-2">
+              {(m.combatLog ?? []).slice(0, 3).map((entry, index) => (
+                <RoundHistoryLine key={entry.id} entry={entry} monsterName={m.name} number={(m.combatLog ?? []).length - index} />
+              ))}
+            </div>
+          </details>
+        ) : null}
       </div>
     </Panel>
+  );
+}
+
+function RollingDicePreview({ title, rolls, tone }: { title: string; rolls: number[]; tone: "hero" | "enemy" }) {
+  return (
+    <div className="rounded-2xl border border-line/60 bg-black/25 p-3 text-center">
+      <p className="text-xs font-bold uppercase tracking-wide text-muted">{title}</p>
+      <div className="mt-3 flex justify-center gap-2">
+        {rolls.map((roll, index) => (
+          <span
+            key={`${title}-${index}-${roll}`}
+            className={`grid h-10 w-10 animate-bounce place-items-center rounded-xl border text-lg font-black shadow-inner ${tone === "hero" ? "border-emerald-400/40 bg-emerald-900/50 text-emerald-100" : "border-red-400/40 bg-red-950/60 text-red-100"}`}
+          >
+            {roll}
+          </span>
+        ))}
+      </div>
+      <p className="mt-3 text-xs text-muted">Les dés roulent…</p>
+    </div>
   );
 }
 
