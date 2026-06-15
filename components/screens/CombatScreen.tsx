@@ -569,7 +569,6 @@ function CombatMonsterCard({
   const canTryLuck = Boolean(round && luckStat && round.outcome !== "tie" && !alreadyTriedLuck(round));
   const luckAttempt = round?.actions.find((action) => action.type === "dice" && action.note?.startsWith("Chance en combat"));
   const damageActions = round?.actions.filter((action) => action.type === "stat") ?? [];
-  const utilityActions = round?.actions.filter((action) => !damageActionIds(round).includes(action.id)) ?? [];
   const monsterLifeRatio = Math.max(0, Math.min(100, (m.endurance / Math.max(1, m.maxEndurance)) * 100));
   const isRolling = Boolean(rollingPreview);
   const previewHero = rollingPreview?.heroRolls ?? [];
@@ -641,6 +640,7 @@ function CombatMonsterCard({
                 <button onClick={() => setDialog({ type: "stat", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">Stat</button>
                 <button onClick={() => setDialog({ type: "note", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">Note</button>
                 <button onClick={() => setDialog({ type: "roll", monster: m, action: true })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">Jet secondaire</button>
+                <button onClick={() => cancelTurn(m.id)} className="col-span-2 rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-muted">Annuler l’assaut</button>
               </>
             ) : null}
             <button onClick={() => deleteMonster(m.id)} className="col-span-2 rounded-xl border border-red-900/60 bg-red-950/20 px-3 py-3 text-sm text-red-200">Supprimer</button>
@@ -746,39 +746,6 @@ function CombatMonsterCard({
               </div>
             ) : null}
 
-            <div className="rounded-2xl border border-line/70 bg-black/20 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-serif text-xs uppercase tracking-wide text-gold2">Impact</h3>
-                <button onClick={() => setToolsOpen((value) => !value)} className="text-xs text-muted">Outils</button>
-              </div>
-              {damageActions.length === 0 ? (
-                <p className="mt-2 text-xs text-muted">Aucun dégât à appliquer.</p>
-              ) : (
-                <div className="mt-2 space-y-2">
-                  {damageActions.map((action) => (
-                    <div key={action.id} className="flex items-start justify-between gap-2 rounded-xl border border-line/60 bg-black/25 p-2 text-xs leading-5 text-parchment">
-                      <span>{actionSummary(action)}</span>
-                      <button onClick={() => removeAction(m.id, action.id)} className="shrink-0 text-red-200">×</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {utilityActions.length > 0 ? (
-              <details className="rounded-2xl border border-line/70 bg-black/20 p-3">
-                <summary className="cursor-pointer font-serif text-xs uppercase tracking-wide text-gold2">Journal de l’assaut</summary>
-                <div className="mt-3 space-y-2">
-                  {utilityActions.map((action) => (
-                    <div key={action.id} className="flex items-start justify-between gap-2 rounded-xl border border-line/60 bg-black/25 p-2 text-xs leading-5 text-muted">
-                      <span>{actionSummary(action)}</span>
-                      <button onClick={() => removeAction(m.id, action.id)} className="shrink-0 text-red-200">×</button>
-                    </div>
-                  ))}
-                </div>
-              </details>
-            ) : null}
-
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -795,13 +762,6 @@ function CombatMonsterCard({
                 👥 Allié
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => cancelTurn(m.id)}
-              className="w-full rounded-xl border border-line/70 bg-black/10 py-2 text-xs text-muted active:scale-[.99]"
-            >
-              Annuler l’assaut
-            </button>
           </div>
         )}
 
