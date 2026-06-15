@@ -378,12 +378,12 @@ export default function CarnetApp() {
                 if (node.id !== deathNodeId) return { ...node, events: node.events ?? [], choices: node.choices ?? [] };
                 return {
                   ...node,
-                  tags: node.tags.includes("death") ? node.tags : [...node.tags, "death"],
+                  tags: node.tags.includes("death") ? node.tags : [...node.tags, "death" as const],
                   events: [
                     ...(node.events ?? []),
                     {
                       id: uid(),
-                      kind: "death",
+                      kind: "death" as const,
                       label: `Mort contre ${monsterName}`,
                       refId: monsterId,
                       createdAt: deathAt,
