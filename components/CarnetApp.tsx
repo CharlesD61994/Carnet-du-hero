@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Adventure, Category, CombatRound, DiceRoll, Item, JourneyEvent, JourneyNode, JourneyTag, Monster, NewAdventureData, Screen } from "@/lib/types";
+import type { Adventure, AdventureLibraryAction, Category, CombatRound, DiceRoll, Item, JourneyEvent, JourneyNode, JourneyTag, Monster, NewAdventureData, Screen } from "@/lib/types";
 import { makeAdventureFromData, makeInitialJourney, starter, STORAGE, uid } from "@/lib/templates";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { CombatScreen } from "@/components/screens/CombatScreen";
@@ -23,6 +23,7 @@ function withAdventureDefaults(adventure: Adventure): Adventure {
     ...adventure,
     diceConfig: adventure.diceConfig ?? { sides: 6, mode: "multiple", count: 2 },
     diceHistory: adventure.diceHistory ?? [],
+    attempts: adventure.attempts ?? 1,
     journey: {
       ...journey,
       nodes: journey.nodes.map((node) => ({
@@ -264,6 +265,141 @@ export default function CarnetApp() {
     });
 
     setScreen("home");
+  };
+
+
+  const renameAdventure = async (id: string) => {
+    const adventure = adventures.find((item) => item.id === id);
+    if (!adventure) return;
+    const values = await requestForm({
+      title: "Renommer l’aventure",
+      fields: [{ name: "title", label: "Nom de l’aventure", value: adventure.title }],
+    });
+    const title = values?.title.trim();
+    if (!title) return;
+    setAdventures((list) =>
+      list.map((item) =>
+        item.id === id ? { ...item, title, updatedAt: todayIso() } : item,
+      ),
+    );
+  };
+
+  const resetAdventureAttempt = (id: string) => {
+    if (!confirm("Réinitialiser la tentative? L’arbre du parcours sera conservé.")) return;
+    setAdventures((list) =>
+      list.map((item) => {
+        if (item.id !== id) return item;
+        const startNode: JourneyNode = {
+          id: uid(),
+          paragraph: 1,
+          notes: "",
+          tags: [],
+          choices: [],
+          events: [
+            {
+              id: uid(),
+              kind: "important",
+              label: "Nouvelle tentative manuelle",
+              createdAt: todayIso(),
+              result: `Tentative ${(item.attempts ?? 1) + 1}`,
+            },
+          ],
+          visitedAt: todayIso(),
+        };
+        return {
+          ...item,
+          status: "En cours",
+          paragraph: 1,
+          attempts: (item.attempts ?? 1) + 1,
+          updatedAt: todayIso(),
+          journey: {
+            currentNodeId: startNode.id,
+            nodes: [...(item.journey?.nodes ?? []), startNode],
+          },
+          stats: item.stats.map((stat) => ({
+            ...stat,
+            current: stat.max ?? stat.current,
+          })),
+        };
+      }),
+    );
+    setSelectedId(id);
+    setScreen("journey");
+  };
+
+  const handleAdventureAction = (id: string, action: AdventureLibraryAction) => {
+    if (action === "delete") return deleteAdventure(id);
+    if (action === "rename") return void renameAdventure(id);
+    if (action === "reset") return resetAdventureAttempt(id);
+  };
+
+
+  const restartAfterHeroDeath = (monsterId: string, monsterName: string) => {
+    setAdventures((list) =>
+      list.map((item) => {
+        if (item.id !== selectedId) return item;
+        const journey = item.journey ?? makeInitialJourney(item.paragraph ?? 1);
+        const deathNodeId =
+          item.monsters.find((candidate) => candidate.id === monsterId)?.sourceNodeId ?? journey.currentNodeId;
+        const deathAt = todayIso();
+        const startNode: JourneyNode = {
+          id: uid(),
+          paragraph: 1,
+          notes: "",
+          tags: [],
+          choices: [],
+          events: [
+            {
+              id: uid(),
+              kind: "important",
+              label: "Nouvelle tentative après la mort du héros",
+              createdAt: deathAt,
+              result: `Tentative ${(item.attempts ?? 1) + 1}`,
+            },
+          ],
+          visitedAt: deathAt,
+        };
+
+        return {
+          ...item,
+          status: "En cours",
+          paragraph: 1,
+          attempts: (item.attempts ?? 1) + 1,
+          lastDeathAt: deathAt,
+          updatedAt: deathAt,
+          stats: item.stats.map((stat) => ({
+            ...stat,
+            current: stat.max ?? stat.current,
+          })),
+          journey: {
+            currentNodeId: startNode.id,
+            nodes: [
+              ...journey.nodes.map((node) => {
+                if (node.id !== deathNodeId) return { ...node, events: node.events ?? [], choices: node.choices ?? [] };
+                return {
+                  ...node,
+                  tags: node.tags.includes("death") ? node.tags : [...node.tags, "death"],
+                  events: [
+                    ...(node.events ?? []),
+                    {
+                      id: uid(),
+                      kind: "death",
+                      label: `Mort contre ${monsterName}`,
+                      refId: monsterId,
+                      createdAt: deathAt,
+                      result: `Tentative ${item.attempts ?? 1} terminée`,
+                    },
+                  ],
+                  choices: node.choices ?? [],
+                };
+              }),
+              startNode,
+            ],
+          },
+        };
+      }),
+    );
+    setScreen("journey");
   };
 
   const updateStat = (id: string, delta: number) => {
@@ -885,7 +1021,12 @@ export default function CarnetApp() {
         : selected.journey,
     });
 
-    if (combatResult === "victory" || combatResult === "defeat") {
+    if (combatResult === "defeat") {
+      window.setTimeout(() => restartAfterHeroDeath(monsterId, monster.name), 0);
+      return;
+    }
+
+    if (combatResult === "victory") {
       setScreen("journey");
     }
   };
@@ -957,6 +1098,7 @@ export default function CarnetApp() {
               setScreen("journey");
             }}
             create={() => setCreating(true)}
+            onAdventureAction={handleAdventureAction}
           />
         )}
         {screen === "journey" && (

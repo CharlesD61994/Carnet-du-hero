@@ -89,6 +89,9 @@ export function JourneyScreen({
     };
   const currentChoices = currentNode.choices ?? [];
   const currentEvents = currentNode.events ?? [];
+  const sameParagraphNodes = journey.nodes.filter((node) => node.paragraph === currentNode.paragraph);
+  const currentPassage = Math.max(1, sameParagraphNodes.findIndex((node) => node.id === currentNode.id) + 1);
+  const totalPassages = sameParagraphNodes.length;
   const [choiceParagraph, setChoiceParagraph] = useState("");
   const [selectedNode, setSelectedNode] = useState<JourneyNode | null>(null);
   const [treeFullscreen, setTreeFullscreen] = useState(false);
@@ -322,6 +325,11 @@ export function JourneyScreen({
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <p className="font-serif text-5xl text-parchment">§{currentNode.paragraph}</p>
                 <span className="rounded-full border border-gold/30 bg-gold/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-gold2">Actuel</span>
+                {totalPassages > 1 ? (
+                  <span className="rounded-full border border-line/70 bg-black/20 px-3 py-1 text-xs font-semibold text-muted">
+                    Passage {currentPassage}/{totalPassages}
+                  </span>
+                ) : null}
               </div>
               <p className="mt-1 text-xs text-muted">Dernière visite : {formatVisitDate(currentNode.visitedAt)}</p>
             </div>

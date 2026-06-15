@@ -1,5 +1,8 @@
-import { ChevronRight, Flame, Plus, Settings } from "lucide-react";
-import type { Adventure } from "@/lib/types";
+"use client";
+
+import { useState } from "react";
+import { ChevronRight, Flame, MoreVertical, Plus, Settings, Trash2 } from "lucide-react";
+import type { Adventure, AdventureLibraryAction } from "@/lib/types";
 import { Header } from "@/components/ui/Header";
 
 export function HomeScreen({
@@ -7,12 +10,15 @@ export function HomeScreen({
   selectedId,
   select,
   create,
+  onAdventureAction,
 }: {
   adventures: Adventure[];
   selectedId: string;
   select: (id: string) => void;
   create: () => void;
+  onAdventureAction: (id: string, action: AdventureLibraryAction) => void;
 }) {
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   return (
     <div>
       <Header title="Carnet ✧ Héros" right={<Settings size={18} />} />
@@ -30,28 +36,75 @@ export function HomeScreen({
         </div>
         <div className="space-y-2">
           {adventures.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => select(a.id)}
-              className={`gold-frame flex w-full items-center gap-3 rounded-xl bg-panel/80 p-2 text-left ${selectedId === a.id ? "shadow-glow" : ""}`}
-            >
-              <div
-                className={`grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${a.cover} text-4xl shadow-inner`}
+            <div key={a.id} className="relative">
+              <button
+                onClick={() => select(a.id)}
+                className={`gold-frame flex w-full items-center gap-3 rounded-xl bg-panel/80 p-2 pr-12 text-left ${selectedId === a.id ? "shadow-glow" : ""}`}
               >
-                <Flame className="text-gold" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-serif text-[1rem] leading-tight text-parchment">
-                  {a.title}
-                </p>
-                <p className="mt-1 text-xs text-muted">{a.series}</p>
-                <p className="mt-2 text-xs text-gold">♙ {a.status}</p>
-              </div>
-              <div className="flex h-full flex-col items-end justify-between gap-5 text-muted">
-                <ChevronRight size={18} />
-                <span className="text-xs">§ {a.paragraph}</span>
-              </div>
-            </button>
+                <div
+                  className={`grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${a.cover} text-4xl shadow-inner`}
+                >
+                  <Flame className="text-gold" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-serif text-[1rem] leading-tight text-parchment">
+                    {a.title}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">{a.series}</p>
+                  <p className="mt-2 text-xs text-gold">♙ {a.status}</p>
+                  <p className="mt-1 text-[11px] text-muted">Tentatives : {a.attempts ?? 1}</p>
+                </div>
+                <div className="flex h-full flex-col items-end justify-between gap-5 text-muted">
+                  <ChevronRight size={18} />
+                  <span className="text-xs">§ {a.paragraph}</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setMenuOpenId(menuOpenId === a.id ? null : a.id);
+                }}
+                className="absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-xl border border-line/70 bg-black/35 text-muted active:scale-[0.98]"
+                aria-label="Options de l’aventure"
+              >
+                <MoreVertical size={18} />
+              </button>
+              {menuOpenId === a.id && (
+                <div className="absolute bottom-14 right-3 z-20 w-56 overflow-hidden rounded-2xl border border-line bg-night shadow-2xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpenId(null);
+                      onAdventureAction(a.id, "rename");
+                    }}
+                    className="block w-full px-4 py-3 text-left text-sm text-parchment active:bg-white/5"
+                  >
+                    Renommer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpenId(null);
+                      onAdventureAction(a.id, "reset");
+                    }}
+                    className="block w-full px-4 py-3 text-left text-sm text-parchment active:bg-white/5"
+                  >
+                    Réinitialiser la tentative
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpenId(null);
+                      onAdventureAction(a.id, "delete");
+                    }}
+                    className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-red-200 active:bg-red-950/30"
+                  >
+                    <Trash2 size={16} /> Supprimer
+                  </button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
         <button className="w-full rounded-lg border border-line py-3 font-serif text-sm uppercase tracking-wide text-gold2">

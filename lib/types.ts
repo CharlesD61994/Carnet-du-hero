@@ -162,6 +162,8 @@ export type JourneyState = {
   nodes: JourneyNode[];
 };
 
+export type AdventureLibraryAction = "rename" | "reset" | "delete";
+
 export type Adventure = {
   id: string;
   title: string;
@@ -171,6 +173,8 @@ export type Adventure = {
   status: string;
   paragraph: number;
   cover: string;
+  attempts?: number;
+  lastDeathAt?: string;
   hero: {
     name: string;
     level: number;
