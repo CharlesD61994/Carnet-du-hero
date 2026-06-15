@@ -39,7 +39,7 @@ export function HomeScreen({
             <div key={a.id} className="relative">
               <button
                 onClick={() => select(a.id)}
-                className={`gold-frame flex w-full items-center gap-3 rounded-xl bg-panel/80 p-2 pr-12 text-left ${selectedId === a.id ? "shadow-glow" : ""}`}
+                className={`gold-frame flex w-full items-center gap-3 rounded-xl bg-panel/80 p-2 pr-16 text-left ${selectedId === a.id ? "shadow-glow" : ""}`}
               >
                 <div
                   className={`grid h-20 w-20 shrink-0 place-items-center rounded-lg bg-gradient-to-br ${a.cover} text-4xl shadow-inner`}
@@ -54,7 +54,7 @@ export function HomeScreen({
                   <p className="mt-2 text-xs text-gold">♙ {a.status}</p>
                   <p className="mt-1 text-[11px] text-muted">Tentatives : {a.attempts ?? 1}</p>
                 </div>
-                <div className="flex h-full flex-col items-end justify-between gap-5 text-muted">
+                <div className="mr-1 flex h-full flex-col items-end justify-between gap-5 text-muted">
                   <ChevronRight size={18} />
                   <span className="text-xs">§ {a.paragraph}</span>
                 </div>
@@ -65,13 +65,13 @@ export function HomeScreen({
                   event.stopPropagation();
                   setMenuOpenId(menuOpenId === a.id ? null : a.id);
                 }}
-                className="absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-xl border border-line/70 bg-black/35 text-muted active:scale-[0.98]"
+                className="absolute right-4 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-xl border border-line/70 bg-black/35 text-muted active:scale-[0.98]"
                 aria-label="Options de l’aventure"
               >
                 <MoreVertical size={18} />
               </button>
               {menuOpenId === a.id && (
-                <div className="absolute bottom-14 right-3 z-20 w-56 overflow-hidden rounded-2xl border border-line bg-night shadow-2xl">
+                <div className="absolute right-4 top-[calc(50%+1.75rem)] z-20 w-56 overflow-hidden rounded-2xl border border-line bg-night shadow-2xl">
                   <button
                     type="button"
                     onClick={() => {

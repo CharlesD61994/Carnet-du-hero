@@ -574,19 +574,36 @@ export default function CarnetApp() {
   };
 
   const updateMonsterEndurance = (id: string, delta: number) => {
+    const target = selected.monsters.find((m) => m.id === id);
+    if (!target) return;
+    const nextEndurance = Math.max(0, Math.min(target.maxEndurance, target.endurance + delta));
+    const combatResult = nextEndurance <= 0 ? "victory" as const : target.combatResult ?? "pending" as const;
     setSelected({
       monsters: selected.monsters.map((m) =>
         m.id === id
           ? {
               ...m,
-              endurance: Math.max(
-                0,
-                Math.min(m.maxEndurance, m.endurance + delta),
-              ),
+              endurance: nextEndurance,
+              combatResult,
             }
           : m,
       ),
+      journey: selected.journey
+        ? {
+            ...selected.journey,
+            nodes: selected.journey.nodes.map((node) => ({
+              ...node,
+              events: (node.events ?? []).map((event) =>
+                event.refId === id && event.kind === "combat"
+                  ? { ...event, result: combatResult === "victory" ? "Victoire" : "En cours" }
+                  : event,
+              ),
+              choices: node.choices ?? [],
+            })),
+          }
+        : selected.journey,
     });
+    if (combatResult === "victory") setScreen("journey");
   };
 
   const goToParagraph = (paragraph: number) => {

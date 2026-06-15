@@ -86,6 +86,8 @@ export function CombatScreen({
   const diceSides = diceConfig.sides ?? 6;
   const [pending, setPending] = useState<Record<string, CombatDraft>>({});
   const [dialog, setDialog] = useState<DialogState>(null);
+  const activeMonsters = adventure.monsters.filter((monster) => !monster.combatResult || monster.combatResult === "pending");
+  const completedMonsters = adventure.monsters.filter((monster) => monster.combatResult && monster.combatResult !== "pending");
 
   const heroPools = useMemo(
     () => [
@@ -96,7 +98,61 @@ export function CombatScreen({
   );
 
   const startRoll = (monster: Monster, count: number) => {
-    const rolls = Array.from({ length: count }, () => rollDie(diceSides));
+    const heroRolls = Array.from({ length: count }, () => rollDie(diceSides));
+    const enemyRolls = Array.from({ length: count }, () => rollDie(diceSides));
+    const heroDiceTotal = sum(heroRolls);
+    const enemyDiceTotal = sum(enemyRolls);
+    const heroSkill = attackStat?.current ?? 0;
+    const enemySkill = monster.skill;
+    const heroAttackTotal = heroDiceTotal + heroSkill;
+    const enemyAttackTotal = enemyDiceTotal + enemySkill;
+    const outcome: CombatRound["outcome"] =
+      heroAttackTotal > enemyAttackTotal
+        ? "hero"
+        : enemyAttackTotal > heroAttackTotal
+          ? "enemy"
+          : "tie";
+
+    const actions: CombatAction[] = [];
+    actions.push({
+      id: uid(),
+      type: "dice",
+      note: `${monster.name} : ${enemyRolls.join(" + ")} + ${enemySkill} = ${enemyAttackTotal}`,
+      roll: {
+        id: uid(),
+        createdAt: new Date().toISOString(),
+        sides: diceSides,
+        count,
+        rolls: enemyRolls,
+        total: enemyDiceTotal,
+        context: `Jet de ${monster.name}`,
+        sourceParagraph: monster.sourceParagraph,
+        sourceNodeId: monster.sourceNodeId,
+      },
+    });
+
+    if (outcome === "hero") {
+      actions.push({
+        id: uid(),
+        type: "stat",
+        target: "monster",
+        statName: "Endurance",
+        delta: -2,
+        note: "Victoire du héros : dégâts standards",
+      });
+    } else if (outcome === "enemy" && lifeStat) {
+      actions.push({
+        id: uid(),
+        type: "stat",
+        target: "hero",
+        statId: lifeStat.id,
+        statName: lifeStat.name,
+        statCollection: "stats",
+        delta: -2,
+        note: `Victoire de ${monster.name} : dégâts standards`,
+      });
+    }
+
     setPending((current) => ({
       ...current,
       [monster.id]: {
@@ -104,10 +160,19 @@ export function CombatScreen({
         createdAt: new Date().toISOString(),
         diceCount: count,
         diceSides,
-        rolls,
-        total: sum(rolls),
+        rolls: heroRolls,
+        total: heroDiceTotal,
         context: `Combat contre ${monster.name}`,
-        actions: [],
+        actions,
+        heroRolls,
+        heroDiceTotal,
+        heroSkill,
+        heroAttackTotal,
+        enemyRolls,
+        enemyDiceTotal,
+        enemySkill,
+        enemyAttackTotal,
+        outcome,
       },
     }));
     setDialog(null);
@@ -219,190 +284,49 @@ export function CombatScreen({
 
         <div className="text-center font-serif text-gold">VS</div>
 
-        {adventure.monsters.length === 0 ? (
+        {activeMonsters.length === 0 ? (
           <Panel className="p-4 text-sm text-muted">
-            Aucun monstre. Appuie sur + pour en ajouter un.
+            Aucun combat en cours. Appuie sur + pour ajouter un monstre.
           </Panel>
         ) : (
-          adventure.monsters.map((m) => {
+          activeMonsters.map((m) => {
             const round = pending[m.id];
-            const ended = m.combatResult && m.combatResult !== "pending";
             return (
-              <Panel key={m.id} className="space-y-3 p-3">
-                <Fighter
-                  name={m.name}
-                  portrait="👺"
-                  skill={m.skill}
-                  end={m.endurance}
-                  max={m.maxEndurance}
-                />
-
-                {ended && (
-                  <p className="rounded-xl border border-gold/30 bg-gold/10 px-3 py-2 text-center font-serif text-sm text-gold2">
-                    {m.combatResult === "victory"
-                      ? "Victoire"
-                      : m.combatResult === "defeat"
-                        ? "Défaite"
-                        : "Combat interrompu"}
-                  </p>
-                )}
-
-                {m.note && (
-                  <p className="rounded-lg border border-line/60 bg-black/20 p-3 text-sm text-muted">
-                    {m.note}
-                  </p>
-                )}
-
-                {!round ? (
-                  <div className="grid gap-2">
-                    <button
-                      onClick={() => setDialog({ type: "roll", monster: m })}
-                      disabled={ended}
-                      className="w-full rounded-2xl border border-gold/50 bg-gold/15 px-4 py-4 font-serif text-lg text-gold2 disabled:opacity-50 active:scale-[.99]"
-                    >
-                      🎲 Lancer les dés
-                    </button>
-                    {!ended && (
-                      <button
-                        onClick={() => setDialog({ type: "quit", monster: m })}
-                        className="w-full rounded-xl border border-line bg-black/20 px-4 py-3 text-sm text-muted active:scale-[.99]"
-                      >
-                        Quitter le combat
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-3 rounded-2xl border border-line/70 bg-black/20 p-3">
-                    <div className="rounded-xl border border-line/60 bg-black/25 p-3 text-center">
-                      <p className="font-serif text-xs uppercase tracking-wide text-gold2">
-                        Lancer principal
-                      </p>
-                      <p className="mt-1 text-sm text-muted">
-                        {round.diceCount}d{round.diceSides}
-                      </p>
-                      <p className="mt-1 text-parchment">{round.rolls.join(" + ")}</p>
-                      <p className="text-4xl font-black text-gold2">{round.total}</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setDialog({ type: "stat", monster: m })}
-                        className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2"
-                      >
-                        ❤️ Modifier une statistique
-                      </button>
-                      <button
-                        onClick={() => setDialog({ type: "item", monster: m })}
-                        className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2"
-                      >
-                        🎒 Utiliser un objet
-                      </button>
-                      <button
-                        onClick={() => setDialog({ type: "note", monster: m })}
-                        className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2"
-                      >
-                        📝 Ajouter une note
-                      </button>
-                      <button
-                        onClick={() => setDialog({ type: "roll", monster: m, action: true })}
-                        className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2"
-                      >
-                        🎲 Relancer les dés
-                      </button>
-                    </div>
-
-                    {round.actions.length > 0 && (
-                      <div className="space-y-2">
-                        <h3 className="font-serif text-xs uppercase tracking-wide text-gold2">
-                          Actions du tour
-                        </h3>
-                        {round.actions.map((action) => (
-                          <div key={action.id} className="flex items-start justify-between gap-2 rounded-xl border border-line/60 bg-black/25 p-3 text-xs text-muted">
-                            <span>{actionSummary(action)}</span>
-                            <button
-                              onClick={() => removeAction(m.id, action.id)}
-                              className="shrink-0 text-red-200"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => cancelTurn(m.id)}
-                        className="rounded-xl border border-line py-3 text-sm text-muted"
-                      >
-                        Annuler
-                      </button>
-                      <button
-                        onClick={() => confirmTurn(m.id)}
-                        className="rounded-xl border border-gold/40 bg-gold/20 py-3 font-semibold text-gold2"
-                      >
-                        Valider le tour
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => updateMonsterEndurance(m.id, -1)}
-                    disabled={ended}
-                    className="rounded-lg border border-line py-2 text-gold disabled:opacity-50"
-                  >
-                    − Vie
-                  </button>
-                  <button
-                    onClick={() => updateMonsterEndurance(m.id, 1)}
-                    disabled={ended}
-                    className="rounded-lg border border-line py-2 text-gold disabled:opacity-50"
-                  >
-                    + Vie
-                  </button>
-                  <button
-                    onClick={() => editMonster(m)}
-                    className="rounded-lg border border-line py-2 text-sm text-gold"
-                  >
-                    Modifier
-                  </button>
-                  <button
-                    onClick={() => deleteMonster(m.id)}
-                    className="rounded-lg border border-red-900/60 py-2 text-sm text-red-200"
-                  >
-                    Supprimer
-                  </button>
-                </div>
-
-                {(m.combatLog ?? []).length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="font-serif text-xs uppercase tracking-wide text-gold2">
-                      Historique
-                    </h3>
-                    {(m.combatLog ?? []).slice(0, 5).map((entry, index) => (
-                      <div key={entry.id} className="rounded-xl border border-line/60 bg-black/20 p-3 text-xs text-muted">
-                        <p className="font-semibold text-parchment">Tour {(m.combatLog ?? []).length - index}</p>
-                        <p>
-                          Lancer : {entry.diceCount}d{entry.diceSides} = {entry.total}
-                        </p>
-                        {entry.actions.length > 0 ? (
-                          <div className="mt-1 space-y-1">
-                            {entry.actions.map((action) => (
-                              <p key={action.id}>{actionSummary(action)}</p>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="mt-1">Aucune action ajoutée.</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Panel>
+              <CombatMonsterCard
+                key={m.id}
+                monster={m}
+                round={round}
+                diceSides={diceSides}
+                lifeStat={lifeStat}
+                setDialog={setDialog}
+                updateMonsterEndurance={updateMonsterEndurance}
+                editMonster={editMonster}
+                deleteMonster={deleteMonster}
+                removeAction={removeAction}
+                cancelTurn={cancelTurn}
+                confirmTurn={confirmTurn}
+              />
             );
           })
+        )}
+
+        {completedMonsters.length > 0 && (
+          <Panel className="space-y-3 p-3">
+            <h2 className="font-serif text-sm uppercase tracking-wide text-gold2">Historique des combats</h2>
+            {completedMonsters.map((m) => (
+              <div key={m.id} className="rounded-xl border border-line/70 bg-black/20 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-parchment">{m.name}</p>
+                    {m.sourceParagraph ? <p className="text-xs text-muted">§ {m.sourceParagraph}</p> : null}
+                  </div>
+                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${m.combatResult === "victory" ? "border-emerald-500/40 bg-emerald-950/30 text-emerald-200" : m.combatResult === "defeat" ? "border-red-500/40 bg-red-950/30 text-red-200" : "border-line bg-black/20 text-muted"}`}>
+                    {m.combatResult === "victory" ? "Vaincu ✓" : m.combatResult === "defeat" ? "Défaite" : "Interrompu"}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </Panel>
         )}
       </div>
 
@@ -467,6 +391,142 @@ export function CombatScreen({
         />
       )}
     </div>
+  );
+}
+
+function CombatMonsterCard({
+  monster: m,
+  round,
+  diceSides,
+  lifeStat,
+  setDialog,
+  updateMonsterEndurance,
+  editMonster,
+  deleteMonster,
+  removeAction,
+  cancelTurn,
+  confirmTurn,
+}: {
+  monster: Monster;
+  round?: CombatDraft;
+  diceSides: number;
+  lifeStat?: Stat;
+  setDialog: (dialog: DialogState) => void;
+  updateMonsterEndurance: (id: string, delta: number) => void;
+  editMonster: (monster: Monster) => void;
+  deleteMonster: (id: string) => void;
+  removeAction: (monsterId: string, actionId: string) => void;
+  cancelTurn: (monsterId: string) => void;
+  confirmTurn: (monsterId: string) => void;
+}) {
+  const outcomeLabel =
+    round?.outcome === "hero"
+      ? "Victoire de l’assaut"
+      : round?.outcome === "enemy"
+        ? `${m.name} remporte l’assaut`
+        : round?.outcome === "tie"
+          ? "Égalité — aucun dégât"
+          : "";
+
+  return (
+    <Panel className="space-y-3 p-3">
+      <Fighter name={m.name} portrait="👺" skill={m.skill} end={m.endurance} max={m.maxEndurance} />
+
+      {m.note && (
+        <p className="rounded-lg border border-line/60 bg-black/20 p-3 text-sm text-muted">{m.note}</p>
+      )}
+
+      {!round ? (
+        <div className="grid gap-2">
+          <button
+            onClick={() => setDialog({ type: "roll", monster: m })}
+            className="w-full rounded-2xl border border-gold/50 bg-gold/15 px-4 py-4 font-serif text-lg text-gold2 active:scale-[.99]"
+          >
+            🎲 Lancer l’assaut
+          </button>
+          <button
+            onClick={() => setDialog({ type: "quit", monster: m })}
+            className="w-full rounded-xl border border-line bg-black/20 px-4 py-3 text-sm text-muted active:scale-[.99]"
+          >
+            Quitter le combat
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3 rounded-2xl border border-line/70 bg-black/20 p-3">
+          <div className="rounded-xl border border-line/60 bg-black/25 p-3">
+            <p className="text-center font-serif text-xs uppercase tracking-wide text-gold2">Résultat de l’assaut</p>
+            <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-start gap-3">
+              <div className="rounded-xl border border-line/60 bg-black/25 p-3 text-center">
+                <p className="text-xs uppercase tracking-wide text-muted">Vous</p>
+                <p className="mt-2 text-lg font-black text-parchment">{round.heroRolls?.join(" + ") ?? round.rolls.join(" + ")}</p>
+                <p className="text-xs text-muted">+ {round.heroSkill ?? 0} Habileté</p>
+                <p className="mt-2 text-sm font-semibold text-gold2">Total : {round.heroAttackTotal ?? round.total}</p>
+              </div>
+              <div className="pt-8 font-serif text-xs uppercase tracking-widest text-gold2">VS</div>
+              <div className="rounded-xl border border-line/60 bg-black/25 p-3 text-center">
+                <p className="text-xs uppercase tracking-wide text-muted">{m.name}</p>
+                <p className="mt-2 text-lg font-black text-parchment">{round.enemyRolls?.join(" + ") ?? "—"}</p>
+                <p className="text-xs text-muted">+ {round.enemySkill ?? m.skill} Habileté</p>
+                <p className="mt-2 text-sm font-semibold text-gold2">Total : {round.enemyAttackTotal ?? "—"}</p>
+              </div>
+            </div>
+            {outcomeLabel && (
+              <div className={`mt-3 rounded-xl border px-3 py-3 text-center font-semibold ${round.outcome === "hero" ? "border-emerald-500/40 bg-emerald-950/30 text-emerald-200" : round.outcome === "enemy" ? "border-red-500/40 bg-red-950/30 text-red-200" : "border-line bg-black/20 text-muted"}`}>
+                {outcomeLabel}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => setDialog({ type: "stat", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">❤️ Modifier une statistique</button>
+            <button onClick={() => setDialog({ type: "item", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">🎒 Utiliser un objet</button>
+            <button onClick={() => setDialog({ type: "note", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">📝 Ajouter une note</button>
+            <button onClick={() => setDialog({ type: "roll", monster: m, action: true })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">🎲 Jet secondaire</button>
+          </div>
+
+          {round.actions.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="font-serif text-xs uppercase tracking-wide text-gold2">Actions prévues</h3>
+              {round.actions.map((action) => (
+                <div key={action.id} className="flex items-start justify-between gap-2 rounded-xl border border-line/60 bg-black/25 p-3 text-xs text-muted">
+                  <span>{actionSummary(action)}</span>
+                  <button onClick={() => removeAction(m.id, action.id)} className="shrink-0 text-red-200">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => cancelTurn(m.id)} className="rounded-xl border border-line py-3 text-sm text-muted">Annuler</button>
+            <button onClick={() => confirmTurn(m.id)} className="rounded-xl border border-gold/40 bg-gold/20 py-3 font-semibold text-gold2">Appliquer l’assaut</button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={() => updateMonsterEndurance(m.id, -1)} className="rounded-lg border border-line py-2 text-gold">− Vie</button>
+        <button onClick={() => updateMonsterEndurance(m.id, 1)} className="rounded-lg border border-line py-2 text-gold">+ Vie</button>
+        <button onClick={() => editMonster(m)} className="rounded-lg border border-line py-2 text-sm text-gold">Modifier</button>
+        <button onClick={() => deleteMonster(m.id)} className="rounded-lg border border-red-900/60 py-2 text-sm text-red-200">Supprimer</button>
+      </div>
+
+      {(m.combatLog ?? []).length > 0 && (
+        <div className="space-y-2">
+          <h3 className="font-serif text-xs uppercase tracking-wide text-gold2">Historique</h3>
+          {(m.combatLog ?? []).slice(0, 5).map((entry, index) => (
+            <div key={entry.id} className="rounded-xl border border-line/60 bg-black/20 p-3 text-xs text-muted">
+              <p className="font-semibold text-parchment">Assaut {(m.combatLog ?? []).length - index}</p>
+              {entry.heroAttackTotal !== undefined && entry.enemyAttackTotal !== undefined ? (
+                <p>Vous : {entry.heroRolls?.join(" + ")} + {entry.heroSkill} = {entry.heroAttackTotal} · {m.name} : {entry.enemyRolls?.join(" + ")} + {entry.enemySkill} = {entry.enemyAttackTotal}</p>
+              ) : (
+                <p>Lancer : {entry.diceCount}d{entry.diceSides} = {entry.total}</p>
+              )}
+              {entry.actions.length > 0 ? <div className="mt-1 space-y-1">{entry.actions.map((action) => <p key={action.id}>{actionSummary(action)}</p>)}</div> : <p className="mt-1">Aucune action ajoutée.</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
   );
 }
 

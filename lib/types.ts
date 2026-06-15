@@ -78,6 +78,15 @@ export type CombatRound = {
   total: number;
   context?: string;
   actions: CombatAction[];
+  heroRolls?: number[];
+  heroDiceTotal?: number;
+  heroSkill?: number;
+  heroAttackTotal?: number;
+  enemyRolls?: number[];
+  enemyDiceTotal?: number;
+  enemySkill?: number;
+  enemyAttackTotal?: number;
+  outcome?: "hero" | "enemy" | "tie";
 };
 
 export type Monster = {
