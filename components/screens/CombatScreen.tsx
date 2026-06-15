@@ -16,6 +16,7 @@ type DialogState =
   | { type: "stat"; monster: Monster }
   | { type: "item"; monster: Monster }
   | { type: "note"; monster: Monster }
+  | { type: "ally"; monster: Monster }
   | { type: "quit"; monster: Monster }
   | null;
 
@@ -503,6 +504,17 @@ export function CombatScreen({
         />
       )}
 
+      {dialog?.type === "ally" && (
+        <AllyActionDialog
+          monster={dialog.monster}
+          onCancel={() => setDialog(null)}
+          onConfirm={(action) => {
+            addAction(dialog.monster.id, action);
+            setDialog(null);
+          }}
+        />
+      )}
+
       {dialog?.type === "quit" && (
         <QuitCombatDialog
           monster={dialog.monster}
@@ -704,23 +716,33 @@ function CombatMonsterCard({
                 {luckAttempt ? (
                   <p className="mt-2 rounded-xl border border-line/60 bg-black/25 p-2 text-xs leading-5 text-parchment">{actionSummary(luckAttempt)}</p>
                 ) : null}
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    disabled={!canTryLuck}
-                    onClick={() => tryLuckInCombat(m)}
-                    className={`rounded-xl border px-3 py-3 text-sm font-bold ${canTryLuck ? "border-gold/50 bg-gold/25 text-gold2" : "border-line bg-black/20 text-muted opacity-60"}`}
-                  >
-                    Oui
-                  </button>
+                {luckAttempt ? (
                   <button
                     type="button"
                     onClick={() => confirmTurn(m.id)}
-                    className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm font-bold text-parchment"
+                    className="mt-3 w-full rounded-xl border border-gold/50 bg-gold/25 px-3 py-3 text-sm font-bold text-gold2 active:scale-[.99]"
                   >
-                    Non / appliquer
+                    Appliquer l’impact et continuer
                   </button>
-                </div>
+                ) : (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={!canTryLuck}
+                      onClick={() => tryLuckInCombat(m)}
+                      className={`rounded-xl border px-3 py-3 text-sm font-bold ${canTryLuck ? "border-gold/50 bg-gold/25 text-gold2" : "border-line bg-black/20 text-muted opacity-60"}`}
+                    >
+                      Oui
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => confirmTurn(m.id)}
+                      className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm font-bold text-parchment active:scale-[.99]"
+                    >
+                      Non / appliquer
+                    </button>
+                  </div>
+                )}
               </div>
             ) : null}
 
@@ -758,9 +780,28 @@ function CombatMonsterCard({
             ) : null}
 
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => cancelTurn(m.id)} className="rounded-xl border border-line py-3 text-sm text-muted">Annuler</button>
-              <button onClick={() => confirmTurn(m.id)} className="rounded-xl border border-gold/40 bg-gold/20 py-3 font-semibold text-gold2">Appliquer l’assaut</button>
+              <button
+                type="button"
+                onClick={() => setDialog({ type: "item", monster: m })}
+                className="rounded-xl border border-gold/35 bg-gold/10 px-3 py-3 text-sm font-bold text-gold2 active:scale-[.99]"
+              >
+                🎒 Utiliser un objet
+              </button>
+              <button
+                type="button"
+                onClick={() => setDialog({ type: "ally", monster: m })}
+                className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm font-bold text-parchment active:scale-[.99]"
+              >
+                👥 Allié
+              </button>
             </div>
+            <button
+              type="button"
+              onClick={() => cancelTurn(m.id)}
+              className="w-full rounded-xl border border-line/70 bg-black/10 py-2 text-xs text-muted active:scale-[.99]"
+            >
+              Annuler l’assaut
+            </button>
           </div>
         )}
 
@@ -1203,6 +1244,60 @@ function NoteActionDialog({
           </button>
           <button
             onClick={() => note.trim() && onConfirm({ id: uid(), type: "note", note: note.trim() })}
+            className="rounded-2xl border border-gold/40 bg-gold/20 px-4 py-3 font-semibold text-gold2"
+          >
+            Ajouter
+          </button>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}
+
+
+function AllyActionDialog({
+  monster,
+  onCancel,
+  onConfirm,
+}: {
+  monster: Monster;
+  onCancel: () => void;
+  onConfirm: (action: CombatAction) => void;
+}) {
+  const [allyName, setAllyName] = useState("");
+  const [note, setNote] = useState("");
+
+  const label = allyName.trim() || "Allié";
+  const detail = note.trim() || `Intervention d’allié pendant le combat contre ${monster.name}.`;
+
+  return (
+    <ModalShell title="Intervention d’allié" description="Note l’action d’un compagnon, d’un allié ou d’une monture pendant ce combat." onCancel={onCancel}>
+      <div className="space-y-4">
+        <label className="block">
+          <span className="mb-2 block font-serif text-xs uppercase tracking-wide text-gold2">Nom de l’allié</span>
+          <input
+            value={allyName}
+            onChange={(event) => setAllyName(event.target.value)}
+            placeholder="Ex. Mungo, compagnon, monture…"
+            className="w-full rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-2 block font-serif text-xs uppercase tracking-wide text-gold2">Action</span>
+          <textarea
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            rows={5}
+            placeholder="Ex. attaque un deuxième adversaire, encaisse un coup, donne un bonus, fuit…"
+            className="w-full resize-y rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
+          />
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <button onClick={onCancel} className="rounded-2xl border border-line bg-black/25 px-4 py-3 font-semibold text-muted">
+            Annuler
+          </button>
+          <button
+            onClick={() => onConfirm({ id: uid(), type: "note", note: `👥 ${label} · ${detail}` })}
             className="rounded-2xl border border-gold/40 bg-gold/20 px-4 py-3 font-semibold text-gold2"
           >
             Ajouter
