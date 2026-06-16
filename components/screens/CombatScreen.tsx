@@ -593,13 +593,13 @@ function CombatMonsterCard({
       <div className="space-y-2 p-2">
         <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-black/45 via-night to-black/20 p-2.5 shadow-inner">
           <div className="flex items-center gap-3">
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-gold/25 bg-black/35 text-3xl">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-gold/25 bg-black/35 text-2xl">
               👺
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-serif text-2xl font-black text-parchment">{m.name}</p>
+                  <p className="truncate font-serif text-xl font-black text-parchment">{m.name}</p>
                 </div>
                 <button
                   type="button"
@@ -610,17 +610,17 @@ function CombatMonsterCard({
                   ⋯
                 </button>
               </div>
-              <div className="mt-2 flex items-center gap-5 text-xl font-black text-parchment sm:text-2xl">
+              <div className="mt-2 flex items-center gap-4 text-base font-bold text-parchment sm:text-lg">
                 <span className="inline-flex items-center gap-1.5 leading-none">
-                  <span className="text-2xl sm:text-3xl">❤️</span>
+                  <span className="text-lg sm:text-xl">❤️</span>
                   <span>{m.endurance}/{m.maxEndurance}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 leading-none">
-                  <span className="text-2xl sm:text-3xl">⚔️</span>
+                  <span className="text-lg sm:text-xl">⚔️</span>
                   <span>{m.skill}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 leading-none">
-                  <span className="text-2xl sm:text-3xl">💥</span>
+                  <span className="text-lg sm:text-xl">💥</span>
                   <span>2</span>
                 </span>
               </div>
