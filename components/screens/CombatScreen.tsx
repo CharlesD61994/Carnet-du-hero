@@ -387,27 +387,24 @@ export function CombatScreen({
         <AdventureStatusBar adventure={adventure} onHeroClick={onHeroClick} />
       </StickyHeaderGroup>
 
-      <div className="space-y-4 p-4">
-        <Panel className="space-y-3 p-3">
+      <div className="space-y-2 p-3">
+        <Panel className="space-y-2 p-2">
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setCombatTab("active")}
-              className={`rounded-xl border px-3 py-3 text-sm font-semibold ${combatTab === "active" ? "border-gold/60 bg-gold/20 text-gold2" : "border-line bg-black/20 text-muted"}`}
+              className={`rounded-xl border px-3 py-2 text-xs font-semibold ${combatTab === "active" ? "border-gold/60 bg-gold/20 text-gold2" : "border-line bg-black/20 text-muted"}`}
             >
               En cours ({activeMonsters.length})
             </button>
             <button
               type="button"
               onClick={() => setCombatTab("history")}
-              className={`rounded-xl border px-3 py-3 text-sm font-semibold ${combatTab === "history" ? "border-gold/60 bg-gold/20 text-gold2" : "border-line bg-black/20 text-muted"}`}
+              className={`rounded-xl border px-3 py-2 text-xs font-semibold ${combatTab === "history" ? "border-gold/60 bg-gold/20 text-gold2" : "border-line bg-black/20 text-muted"}`}
             >
               Historique ({completedMonsters.length})
             </button>
           </div>
-          <p className="text-center text-xs leading-5 text-muted">
-            Chaque assaut est guidé : dés visibles, total calculé, gagnant annoncé, puis option de tenter la Chance avant d’appliquer les dégâts.
-          </p>
         </Panel>
 
         {combatTab === "active" && activeMonsters.length === 0 ? (
@@ -592,33 +589,32 @@ function CombatMonsterCard({
 
   return (
     <Panel className="overflow-hidden p-0">
-      <div className="space-y-3 p-3">
-        <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-black/45 via-night to-black/20 p-3 shadow-inner">
+      <div className="space-y-2 p-2">
+        <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-black/45 via-night to-black/20 p-2 shadow-inner">
           <div className="flex items-center gap-3">
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-gold/25 bg-black/35 text-3xl">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-gold/25 bg-black/35 text-2xl">
               👺
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-serif text-xl font-bold text-parchment">{m.name}</p>
-                  <p className="mt-0.5 text-[0.68rem] text-muted">Combat v3 · {m.sourceParagraph ? `§${m.sourceParagraph}` : "sans paragraphe"}</p>
+                  <p className="truncate font-serif text-lg font-bold text-parchment">{m.name}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setToolsOpen((value) => !value)}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-line bg-black/25 text-lg text-muted active:scale-[.98]"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-line bg-black/25 text-base text-muted active:scale-[.98]"
                   aria-label="Outils du combat"
                 >
                   ⋯
                 </button>
               </div>
-              <div className="mt-3 flex items-center gap-2 text-xs text-muted">
+              <div className="mt-1 flex items-center gap-3 text-xs text-muted">
                 <span className="font-bold text-parchment">❤️ {m.endurance}/{m.maxEndurance}</span>
                 <span>⚔️ {m.skill}</span>
                 <span>💥 2</span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/50 ring-1 ring-line/60">
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/50 ring-1 ring-line/60">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-red-500 to-gold"
                   style={{ width: `${monsterLifeRatio}%` }}
@@ -648,11 +644,9 @@ function CombatMonsterCard({
         ) : null}
 
         {!round ? (
-          <div className="rounded-[1.5rem] border border-line/70 bg-black/20 p-3">
-            <p className="text-center font-serif text-xs uppercase tracking-[0.28em] text-gold2">Assaut</p>
-
+          <div className="rounded-2xl border border-line/70 bg-black/20 p-2">
             {isRolling ? (
-              <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                 <RollingDicePreview title="Vous" rolls={previewHero} tone="hero" />
                 <div className="font-serif text-sm font-bold uppercase tracking-widest text-gold2">VS</div>
                 <RollingDicePreview title={m.name} rolls={previewEnemy} tone="enemy" />
@@ -660,7 +654,7 @@ function CombatMonsterCard({
             ) : (
               <button
                 onClick={() => startRoll(m, 2)}
-                className="mt-4 flex w-full items-center justify-center gap-3 rounded-2xl border border-gold/60 bg-gradient-to-b from-gold/35 to-gold/15 px-4 py-5 font-serif text-lg font-bold uppercase tracking-wide text-gold2 shadow-lg active:scale-[.99]"
+                className="flex w-full items-center justify-center gap-3 rounded-2xl border border-gold/60 bg-gradient-to-b from-gold/35 to-gold/15 px-4 py-4 font-serif text-base font-bold uppercase tracking-wide text-gold2 shadow-lg active:scale-[.99]"
               >
                 <Swords size={21} />
                 Lancer l’assaut
@@ -668,10 +662,9 @@ function CombatMonsterCard({
             )}
           </div>
         ) : (
-          <div className="space-y-3">
-            <div className="rounded-[1.5rem] border border-line/70 bg-black/20 p-3">
-              <p className="text-center font-serif text-xs uppercase tracking-[0.28em] text-gold2">Assaut</p>
-              <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
+          <div className="space-y-2">
+            <div className="rounded-2xl border border-line/70 bg-black/20 p-2">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-stretch gap-2">
                 <DiceResultCard
                   title="Vous"
                   rolls={round.heroRolls ?? round.rolls}
@@ -693,53 +686,47 @@ function CombatMonsterCard({
                 />
               </div>
               {outcomeTitle ? (
-                <div className={`mt-3 rounded-2xl border px-3 py-3 text-center ${outcomeClass}`}>
-                  <p className="font-serif text-lg font-black uppercase tracking-wide">{outcomeTitle}</p>
-                  {round.outcome === "tie" ? (
-                    <p className="mt-1 text-xs text-muted">Aucun dégât. Lancez un nouvel assaut.</p>
-                  ) : (
-                    <p className="mt-1 text-xs text-muted">Choisissez si vous tentez votre Chance avant d’appliquer l’impact.</p>
-                  )}
+                <div className={`mt-2 rounded-xl border px-3 py-2 text-center ${outcomeClass}`}>
+                  <p className="font-serif text-base font-black uppercase tracking-wide">{outcomeTitle}</p>
+                  {round.outcome === "tie" ? <p className="mt-0.5 text-[0.68rem] text-muted">Aucun dégât.</p> : null}
                 </div>
               ) : null}
             </div>
 
             {round.outcome !== "tie" ? (
-              <div className="rounded-2xl border border-gold/30 bg-gold/10 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-serif text-sm font-bold uppercase tracking-wide text-gold2">Tenter sa Chance ?</p>
-                    <p className="mt-1 text-xs text-muted">Après l’assaut, avant les dégâts finaux.</p>
+              <div className="rounded-2xl border border-gold/30 bg-gold/10 p-2">
+                {luckAttempt ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-serif font-bold uppercase tracking-wide text-gold2">Chance tentée</span>
+                      <span className="rounded-full border border-line bg-black/20 px-2 py-0.5 text-[0.68rem] text-parchment">Fait</span>
+                    </div>
+                    <p className="rounded-xl border border-line/60 bg-black/25 p-2 text-[0.72rem] leading-4 text-parchment">{actionSummary(luckAttempt)}</p>
+                    <button
+                      type="button"
+                      onClick={() => confirmTurn(m.id)}
+                      className="w-full rounded-xl border border-gold/50 bg-gold/25 px-3 py-2 text-sm font-bold text-gold2 active:scale-[.99]"
+                    >
+                      Continuer
+                    </button>
                   </div>
-                  {luckAttempt ? <span className="rounded-full border border-line bg-black/20 px-2 py-1 text-xs text-parchment">Fait</span> : null}
-                </div>
-                {luckAttempt ? (
-                  <p className="mt-2 rounded-xl border border-line/60 bg-black/25 p-2 text-xs leading-5 text-parchment">{actionSummary(luckAttempt)}</p>
-                ) : null}
-                {luckAttempt ? (
-                  <button
-                    type="button"
-                    onClick={() => confirmTurn(m.id)}
-                    className="mt-3 w-full rounded-xl border border-gold/50 bg-gold/25 px-3 py-3 text-sm font-bold text-gold2 active:scale-[.99]"
-                  >
-                    Appliquer l’impact et continuer
-                  </button>
                 ) : (
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-[1fr_auto_auto] items-center gap-2">
+                    <p className="font-serif text-sm font-bold uppercase tracking-wide text-gold2">Chance ?</p>
                     <button
                       type="button"
                       disabled={!canTryLuck}
                       onClick={() => tryLuckInCombat(m)}
-                      className={`rounded-xl border px-3 py-3 text-sm font-bold ${canTryLuck ? "border-gold/50 bg-gold/25 text-gold2" : "border-line bg-black/20 text-muted opacity-60"}`}
+                      className={`rounded-xl border px-4 py-2 text-sm font-bold ${canTryLuck ? "border-gold/50 bg-gold/25 text-gold2" : "border-line bg-black/20 text-muted opacity-60"}`}
                     >
                       Oui
                     </button>
                     <button
                       type="button"
                       onClick={() => confirmTurn(m.id)}
-                      className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm font-bold text-parchment active:scale-[.99]"
+                      className="rounded-xl border border-line bg-black/20 px-3 py-2 text-sm font-bold text-parchment active:scale-[.99]"
                     >
-                      Non / appliquer
+                      Non
                     </button>
                   </div>
                 )}
@@ -750,14 +737,14 @@ function CombatMonsterCard({
               <button
                 type="button"
                 onClick={() => setDialog({ type: "item", monster: m })}
-                className="rounded-xl border border-gold/35 bg-gold/10 px-3 py-3 text-sm font-bold text-gold2 active:scale-[.99]"
+                className="rounded-xl border border-gold/35 bg-gold/10 px-3 py-2.5 text-sm font-bold text-gold2 active:scale-[.99]"
               >
-                🎒 Utiliser un objet
+                🎒 Objet
               </button>
               <button
                 type="button"
                 onClick={() => setDialog({ type: "ally", monster: m })}
-                className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm font-bold text-parchment active:scale-[.99]"
+                className="rounded-xl border border-line bg-black/20 px-3 py-2.5 text-sm font-bold text-parchment active:scale-[.99]"
               >
                 👥 Allié
               </button>
@@ -782,19 +769,19 @@ function CombatMonsterCard({
 
 function RollingDicePreview({ title, rolls, tone }: { title: string; rolls: number[]; tone: "hero" | "enemy" }) {
   return (
-    <div className="rounded-2xl border border-line/60 bg-black/25 p-3 text-center">
+    <div className="rounded-2xl border border-line/60 bg-black/25 p-2 text-center">
       <p className="text-xs font-bold uppercase tracking-wide text-muted">{title}</p>
-      <div className="mt-3 flex justify-center gap-2">
+      <div className="mt-2 flex justify-center gap-1.5">
         {rolls.map((roll, index) => (
           <span
             key={`${title}-${index}-${roll}`}
-            className={`grid h-10 w-10 animate-bounce place-items-center rounded-xl border text-lg font-black shadow-inner ${tone === "hero" ? "border-emerald-400/40 bg-emerald-900/50 text-emerald-100" : "border-red-400/40 bg-red-950/60 text-red-100"}`}
+            className={`grid h-8 w-8 animate-bounce place-items-center rounded-lg border text-base font-black shadow-inner ${tone === "hero" ? "border-emerald-400/40 bg-emerald-900/50 text-emerald-100" : "border-red-400/40 bg-red-950/60 text-red-100"}`}
           >
             {roll}
           </span>
         ))}
       </div>
-      <p className="mt-3 text-xs text-muted">Les dés roulent…</p>
+      <p className="mt-2 text-[0.68rem] text-muted">Les dés roulent…</p>
     </div>
   );
 }
@@ -810,7 +797,7 @@ function StatPill({ label, value }: { label: string; value: string | number }) {
 
 function DiceFace({ value, tone }: { value: number; tone: "hero" | "enemy" }) {
   return (
-    <span className={`grid h-9 w-9 place-items-center rounded-xl border text-lg font-black shadow-inner ${tone === "hero" ? "border-emerald-400/40 bg-emerald-900/50 text-emerald-100" : "border-red-400/40 bg-red-950/60 text-red-100"}`}>
+    <span className={`grid h-8 w-8 place-items-center rounded-lg border text-base font-black shadow-inner ${tone === "hero" ? "border-emerald-400/40 bg-emerald-900/50 text-emerald-100" : "border-red-400/40 bg-red-950/60 text-red-100"}`}>
       {value}
     </span>
   );
@@ -834,14 +821,14 @@ function DiceResultCard({
   tone: "hero" | "enemy";
 }) {
   return (
-    <div className="rounded-2xl border border-line/60 bg-black/25 p-3 text-center">
+    <div className="rounded-2xl border border-line/60 bg-black/25 p-2 text-center">
       <p className="text-xs font-bold uppercase tracking-wide text-muted">{title}</p>
-      <div className="mt-3 flex justify-center gap-2">
+      <div className="mt-2 flex justify-center gap-1.5">
         {rolls.map((roll, index) => <DiceFace key={`${title}-${index}-${roll}`} value={roll} tone={tone} />)}
       </div>
-      <p className="mt-3 text-sm text-parchment">{rolls.join(" + ") || "—"} = {diceTotal}</p>
-      <p className="text-xs text-muted">+ {bonus} {bonusLabel}</p>
-      <p className={`mt-2 font-serif text-2xl font-black ${tone === "hero" ? "text-emerald-200" : "text-red-200"}`}>{total}</p>
+      <p className="mt-2 text-xs text-parchment">{rolls.join(" + ") || "—"} = {diceTotal}</p>
+      <p className="text-[0.68rem] text-muted">+ {bonus} {bonusLabel}</p>
+      <p className={`mt-1 font-serif text-xl font-black ${tone === "hero" ? "text-emerald-200" : "text-red-200"}`}>{total}</p>
     </div>
   );
 }
