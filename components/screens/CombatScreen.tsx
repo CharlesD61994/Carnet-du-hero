@@ -9,7 +9,7 @@ import { Panel } from "@/components/ui/Panel";
 import { uid } from "@/lib/templates";
 
 type CombatDraft = CombatRound;
-type RollingPreview = { heroRolls: number[]; enemyRolls: number[] };
+type RollingPreview = { heroRolls: number[]; enemyRolls: number[]; tick: number };
 
 type DialogState =
   | { type: "roll"; monster: Monster; action?: boolean }
@@ -210,14 +210,15 @@ export function CombatScreen({
     });
 
     let ticks = 0;
-    const nextPreview = () => ({
+    const nextPreview = (tick: number) => ({
       heroRolls: Array.from({ length: count }, () => rollDie(diceSides)),
       enemyRolls: Array.from({ length: count }, () => rollDie(diceSides)),
+      tick,
     });
-    setRolling((current) => ({ ...current, [monster.id]: nextPreview() }));
+    setRolling((current) => ({ ...current, [monster.id]: nextPreview(0) }));
     const interval = window.setInterval(() => {
       ticks += 1;
-      setRolling((current) => ({ ...current, [monster.id]: nextPreview() }));
+      setRolling((current) => ({ ...current, [monster.id]: nextPreview(ticks) }));
       if (ticks >= 7) {
         window.clearInterval(interval);
         const finalHeroRolls = Array.from({ length: count }, () => rollDie(diceSides));
@@ -647,9 +648,9 @@ function CombatMonsterCard({
           <div className="rounded-2xl border border-line/70 bg-black/20 p-2">
             {isRolling ? (
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                <RollingDicePreview title="Vous" rolls={previewHero} tone="hero" />
+                <RollingDicePreview title="Vous" rolls={previewHero} tone="hero" tick={rollingPreview?.tick ?? 0} />
                 <div className="font-serif text-sm font-bold uppercase tracking-widest text-gold2">VS</div>
-                <RollingDicePreview title={m.name} rolls={previewEnemy} tone="enemy" />
+                <RollingDicePreview title={m.name} rolls={previewEnemy} tone="enemy" tick={rollingPreview?.tick ?? 0} />
               </div>
             ) : (
               <button
@@ -767,15 +768,16 @@ function CombatMonsterCard({
   );
 }
 
-function RollingDicePreview({ title, rolls, tone }: { title: string; rolls: number[]; tone: "hero" | "enemy" }) {
+function RollingDicePreview({ title, rolls, tone, tick }: { title: string; rolls: number[]; tone: "hero" | "enemy"; tick: number }) {
   return (
-    <div className="rounded-2xl border border-line/60 bg-black/25 p-2 text-center">
+    <div className="rounded-2xl border border-line/60 bg-black/25 p-2 text-center" aria-live="polite">
       <p className="text-xs font-bold uppercase tracking-wide text-muted">{title}</p>
       <div className="mt-2 flex justify-center gap-1.5">
         {rolls.map((roll, index) => (
           <span
-            key={`${title}-${index}-${roll}`}
-            className={`grid h-8 w-8 animate-bounce place-items-center rounded-lg border text-base font-black shadow-inner ${tone === "hero" ? "border-emerald-400/40 bg-emerald-900/50 text-emerald-100" : "border-red-400/40 bg-red-950/60 text-red-100"}`}
+            key={`${title}-${index}-${tick}-${roll}`}
+            style={{ animationDelay: `${index * 70}ms` }}
+            className={`dice-rolling grid h-8 w-8 place-items-center rounded-lg border text-base font-black shadow-inner ${tone === "hero" ? "border-emerald-400/40 bg-emerald-900/50 text-emerald-100" : "border-red-400/40 bg-red-950/60 text-red-100"}`}
           >
             {roll}
           </span>
@@ -797,7 +799,7 @@ function StatPill({ label, value }: { label: string; value: string | number }) {
 
 function DiceFace({ value, tone }: { value: number; tone: "hero" | "enemy" }) {
   return (
-    <span className={`grid h-8 w-8 place-items-center rounded-lg border text-base font-black shadow-inner ${tone === "hero" ? "border-emerald-400/40 bg-emerald-900/50 text-emerald-100" : "border-red-400/40 bg-red-950/60 text-red-100"}`}>
+    <span className={`dice-settle grid h-8 w-8 place-items-center rounded-lg border text-base font-black shadow-inner ${tone === "hero" ? "border-emerald-400/40 bg-emerald-900/50 text-emerald-100" : "border-red-400/40 bg-red-950/60 text-red-100"}`}>
       {value}
     </span>
   );
