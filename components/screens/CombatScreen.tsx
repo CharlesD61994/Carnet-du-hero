@@ -591,15 +591,15 @@ function CombatMonsterCard({
   return (
     <Panel className="overflow-hidden p-0">
       <div className="space-y-2 p-2">
-        <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-black/45 via-night to-black/20 p-2 shadow-inner">
+        <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-black/45 via-night to-black/20 p-2.5 shadow-inner">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-gold/25 bg-black/35 text-2xl">
+            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-xl border border-gold/25 bg-black/35 text-3xl">
               👺
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-serif text-lg font-bold text-parchment">{m.name}</p>
+                  <p className="truncate font-serif text-2xl font-black text-parchment">{m.name}</p>
                 </div>
                 <button
                   type="button"
@@ -610,21 +610,21 @@ function CombatMonsterCard({
                   ⋯
                 </button>
               </div>
-              <div className="mt-1.5 flex items-center gap-4 text-base font-black text-parchment sm:text-lg">
+              <div className="mt-2 flex items-center gap-5 text-xl font-black text-parchment sm:text-2xl">
                 <span className="inline-flex items-center gap-1.5 leading-none">
-                  <span className="text-xl sm:text-2xl">❤️</span>
+                  <span className="text-2xl sm:text-3xl">❤️</span>
                   <span>{m.endurance}/{m.maxEndurance}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 leading-none">
-                  <span className="text-xl sm:text-2xl">⚔️</span>
+                  <span className="text-2xl sm:text-3xl">⚔️</span>
                   <span>{m.skill}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 leading-none">
-                  <span className="text-xl sm:text-2xl">💥</span>
+                  <span className="text-2xl sm:text-3xl">💥</span>
                   <span>2</span>
                 </span>
               </div>
-              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/50 ring-1 ring-line/60">
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/50 ring-1 ring-line/60">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-red-500 to-gold"
                   style={{ width: `${monsterLifeRatio}%` }}
