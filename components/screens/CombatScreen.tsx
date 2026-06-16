@@ -610,10 +610,19 @@ function CombatMonsterCard({
                   ⋯
                 </button>
               </div>
-              <div className="mt-1 flex items-center gap-3 text-xs text-muted">
-                <span className="font-bold text-parchment">❤️ {m.endurance}/{m.maxEndurance}</span>
-                <span>⚔️ {m.skill}</span>
-                <span>💥 2</span>
+              <div className="mt-1.5 flex items-center gap-4 text-base font-black text-parchment sm:text-lg">
+                <span className="inline-flex items-center gap-1.5 leading-none">
+                  <span className="text-xl sm:text-2xl">❤️</span>
+                  <span>{m.endurance}/{m.maxEndurance}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 leading-none">
+                  <span className="text-xl sm:text-2xl">⚔️</span>
+                  <span>{m.skill}</span>
+                </span>
+                <span className="inline-flex items-center gap-1.5 leading-none">
+                  <span className="text-xl sm:text-2xl">💥</span>
+                  <span>2</span>
+                </span>
               </div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-black/50 ring-1 ring-line/60">
                 <div
