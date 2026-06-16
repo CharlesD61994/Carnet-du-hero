@@ -104,13 +104,13 @@ function ThemedFormModal({
                   onChange={(event) => update(field.name, event.target.value)}
                   rows={6}
                   placeholder={field.placeholder}
-                  className="w-full resize-y rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm leading-6 text-parchment outline-none placeholder:text-muted focus:border-gold/50"
+                  className="w-full resize-y rounded-2xl border border-line bg-black/25 px-4 py-3 text-base leading-6 text-parchment outline-none placeholder:text-muted focus:border-gold/50"
                 />
               ) : field.type === "select" ? (
                 <select
                   value={values[field.name] ?? ""}
                   onChange={(event) => update(field.name, event.target.value)}
-                  className="w-full rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none focus:border-gold/50"
+                  className="w-full rounded-2xl border border-line bg-black/25 px-4 py-3 text-base text-parchment outline-none focus:border-gold/50"
                 >
                   {(field.options ?? []).map((option) => (
                     <option key={option} value={option} className="bg-night text-parchment">
@@ -125,7 +125,7 @@ function ThemedFormModal({
                   type={field.type === "number" ? "number" : "text"}
                   inputMode={field.type === "number" ? "numeric" : undefined}
                   placeholder={field.placeholder}
-                  className="w-full rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
+                  className="w-full rounded-2xl border border-line bg-black/25 px-4 py-3 text-base text-parchment outline-none placeholder:text-muted focus:border-gold/50"
                 />
               )}
             </label>
@@ -165,6 +165,10 @@ export default function CarnetApp() {
   const [pendingDiceContext, setPendingDiceContext] = useState<{ nodeId: string; paragraph: number; context: string } | null>(null);
   const [formModal, setFormModal] = useState<FormModalState | null>(null);
   const formResolver = useRef<((values: Record<string, string> | null) => void) | null>(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [screen, selectedId]);
 
   const requestForm = (modal: FormModalState) =>
     new Promise<Record<string, string> | null>((resolve) => {

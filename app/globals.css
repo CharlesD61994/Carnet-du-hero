@@ -6,7 +6,8 @@
 * { box-sizing: border-box; }
 html, body { min-height: 100%; background: #070b0c; }
 body { color: #f7e6bd; }
-button, input, textarea { -webkit-tap-highlight-color: transparent; }
+button, input, textarea, select { -webkit-tap-highlight-color: transparent; }
+input, textarea, select { font-size: 16px; }
 
 .grimoire-bg {
   background:

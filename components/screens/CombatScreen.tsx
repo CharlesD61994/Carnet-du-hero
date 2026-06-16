@@ -871,16 +871,16 @@ function CompletedCombatCard({ monster }: { monster: Monster }) {
   return (
     <div className="rounded-2xl border border-line/70 bg-black/20 p-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="grid h-12 w-12 place-items-center rounded-xl border border-line/60 bg-black/30 text-2xl">
             {monster.combatResult === "defeat" ? <Skull size={22} /> : "👺"}
           </div>
-          <div>
-            <p className="font-semibold text-parchment">{monster.name}</p>
-            <p className="text-xs text-muted">{monster.sourceParagraph ? `§ ${monster.sourceParagraph}` : "Sans paragraphe"} · {(monster.combatLog ?? []).length} assaut(s)</p>
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-parchment">{monster.name}</p>
+            <p className="truncate text-xs text-muted">{monster.sourceParagraph ? `§ ${monster.sourceParagraph}` : "Sans paragraphe"} · {(monster.combatLog ?? []).length} assaut(s)</p>
           </div>
         </div>
-        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}>
+        <span className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}>
           {status} {monster.combatResult === "victory" ? <CheckCircle2 className="inline" size={13} /> : null}
         </span>
       </div>
