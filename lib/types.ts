@@ -153,6 +153,7 @@ export type JourneyTag =
   | "dice"
   | "spell"
   | "item"
+  | "itemUse"
   | "important"
   | "key"
   | "secret"

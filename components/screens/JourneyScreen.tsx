@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -14,6 +14,7 @@ const TAGS: { id: JourneyTag; label: string; icon: string }[] = [
   { id: "dice", label: "Dé", icon: "🎲" },
   { id: "spell", label: "Sort", icon: "🧙" },
   { id: "item", label: "Objet", icon: "🎒" },
+  { id: "itemUse", label: "Objet utilisé", icon: "🧪" },
   { id: "important", label: "Important", icon: "⭐" },
   { id: "key", label: "Clé", icon: "🔑" },
   { id: "secret", label: "Secret", icon: "🚪" },
@@ -24,10 +25,10 @@ const tagIcon = (tag: JourneyTag) => TAGS.find((item) => item.id === tag)?.icon 
 const tagLabel = (tag: JourneyTag) => TAGS.find((item) => item.id === tag)?.label ?? tag;
 
 function formatVisitDate(value: string) {
-  if (!value) return "Non visité";
+  if (!value) return "Non visitÃ©";
   try {
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "Non visité";
+    if (Number.isNaN(date.getTime())) return "Non visitÃ©";
     return new Intl.DateTimeFormat("fr-CA", {
       dateStyle: "medium",
       timeStyle: "short",
@@ -42,10 +43,10 @@ function choiceStatus(choice: JourneyChoice, currentNode: JourneyNode, nodes: Jo
     (node) => node.parentId === currentNode.id && node.paragraph === choice.to,
   );
   if (!child) return { icon: "?", label: "Inconnu", className: "text-muted" };
-  if (child.tags.includes("death")) return { icon: "☠️", label: "Mort", className: "text-red-200" };
-  if (child.tags.includes("danger")) return { icon: "⚠️", label: "Danger", className: "text-amber-200" };
-  if (child.tags.includes("important")) return { icon: "⭐", label: "Important", className: "text-gold2" };
-  return { icon: "✓", label: "Visité", className: "text-emerald-200" };
+  if (child.tags.includes("death")) return { icon: "â˜ ï¸", label: "Mort", className: "text-red-200" };
+  if (child.tags.includes("danger")) return { icon: "âš ï¸", label: "Danger", className: "text-amber-200" };
+  if (child.tags.includes("important")) return { icon: "â­", label: "Important", className: "text-gold2" };
+  return { icon: "âœ“", label: "VisitÃ©", className: "text-emerald-200" };
 }
 
 type Props = {
@@ -165,7 +166,7 @@ export function JourneyScreen({
               : "border-line/70 bg-black/20 text-muted"
         }`}
       >
-        <span className="font-serif text-lg font-bold leading-none">§{paragraph}</span>
+        <span className="font-serif text-lg font-bold leading-none">Â§{paragraph}</span>
         {active ? <span className="rounded-full bg-gold/15 px-2 py-1 text-[10px] uppercase tracking-widest text-gold2">actuel</span> : null}
         {iconArea ? <span className="flex min-w-0 items-center gap-1 text-sm">{iconArea}</span> : null}
       </button>
@@ -181,7 +182,7 @@ export function JourneyScreen({
           onClick={() => onGoToParagraph(choice.to)}
           className="rounded-xl border border-line/70 bg-black/20 px-3 py-2 font-serif text-lg font-bold text-parchment active:scale-[0.99]"
         >
-          → §{choice.to}
+          â†’ Â§{choice.to}
         </button>
         <button
           type="button"
@@ -197,7 +198,7 @@ export function JourneyScreen({
           className="rounded-xl border border-line/70 bg-black/20 px-3 py-2 text-sm text-muted active:scale-[0.98]"
           aria-label="Supprimer ce choix"
         >
-          ×
+          Ã—
         </button>
       </div>
     );
@@ -252,7 +253,7 @@ export function JourneyScreen({
     const choices = node.choices ?? [];
     const events = node.events ?? [];
     const iconItems: ReactNode[] = [];
-    if (node.notes.trim()) iconItems.push(<span key="note" title="Note">📝</span>);
+    if (node.notes.trim()) iconItems.push(<span key="note" title="Note">ðŸ“</span>);
     for (const event of events.slice(0, 4)) {
       iconItems.push(<span key={event.id} title={event.label}>{tagIcon(event.kind)}</span>);
     }
@@ -323,7 +324,7 @@ export function JourneyScreen({
             <div>
               <p className="font-serif text-xs uppercase tracking-widest text-gold2">Paragraphe actuel</p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <p className="font-serif text-5xl text-parchment">§{currentNode.paragraph}</p>
+                <p className="font-serif text-5xl text-parchment">Â§{currentNode.paragraph}</p>
                 <span className="rounded-full border border-gold/30 bg-gold/15 px-3 py-1 text-xs font-bold uppercase tracking-widest text-gold2">Actuel</span>
                 {totalPassages > 1 ? (
                   <span className="rounded-full border border-line/70 bg-black/20 px-3 py-1 text-xs font-semibold text-muted">
@@ -331,12 +332,12 @@ export function JourneyScreen({
                   </span>
                 ) : null}
               </div>
-              <p className="mt-1 text-xs text-muted">Dernière visite : {formatVisitDate(currentNode.visitedAt)}</p>
+              <p className="mt-1 text-xs text-muted">DerniÃ¨re visite : {formatVisitDate(currentNode.visitedAt)}</p>
             </div>
           </div>
 
           <div>
-            <p className="mb-2 font-serif text-xs uppercase tracking-widest text-gold2">Ajouter un événement</p>
+            <p className="mb-2 font-serif text-xs uppercase tracking-widest text-gold2">Ajouter un Ã©vÃ©nement</p>
             <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {TAGS.map((tag) => (
                 <button
@@ -355,7 +356,7 @@ export function JourneyScreen({
 
           {currentEvents.length ? (
             <div>
-              <p className="mb-2 font-serif text-xs uppercase tracking-widest text-gold2">Événements liés</p>
+              <p className="mb-2 font-serif text-xs uppercase tracking-widest text-gold2">Ã‰vÃ©nements liÃ©s</p>
               <div className="space-y-2">{currentEvents.map((event) => renderEventPill(event))}</div>
             </div>
           ) : null}
@@ -366,14 +367,14 @@ export function JourneyScreen({
               value={currentNode.notes}
               onChange={(event) => onUpdateNotes(event.target.value)}
               rows={3}
-              placeholder="Ex. Marchand rencontré, objet requis, piège, mot de passe…"
+              placeholder="Ex. Marchand rencontrÃ©, objet requis, piÃ¨ge, mot de passeâ€¦"
               className="w-full resize-none rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm leading-6 text-parchment outline-none placeholder:text-muted"
             />
           </div>
 
           <div>
             <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="font-serif text-xs uppercase tracking-widest text-gold2">Choix proposés</p>
+              <p className="font-serif text-xs uppercase tracking-widest text-gold2">Choix proposÃ©s</p>
               <p className="text-xs text-muted">{currentChoices.length} choix</p>
             </div>
 
@@ -388,7 +389,7 @@ export function JourneyScreen({
                 value={choiceParagraph}
                 onChange={(event) => setChoiceParagraph(event.target.value)}
                 inputMode="numeric"
-                placeholder="Ajouter un choix vers §…"
+                placeholder="Ajouter un choix vers Â§â€¦"
                 className="min-w-0 rounded-2xl border border-line bg-black/25 px-4 py-3 text-parchment outline-none placeholder:text-muted"
               />
               <button
@@ -413,10 +414,10 @@ export function JourneyScreen({
                 onClick={() => setTreeFullscreen(true)}
                 className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-semibold text-gold2 active:scale-[0.98]"
               >
-                ⛶ Plein écran
+                â›¶ Plein Ã©cran
               </button>
               <p className="rounded-full border border-line/70 bg-black/20 px-3 py-1 text-xs text-muted">
-                {journey.nodes.length} §
+                {journey.nodes.length} Â§
               </p>
             </div>
           </div>
@@ -436,14 +437,14 @@ export function JourneyScreen({
                 onClick={() => setTreeFullscreen(false)}
                 className="rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm font-semibold text-muted active:scale-[0.98]"
               >
-                ← Retour au parcours
+                â† Retour au parcours
               </button>
               <button
                 type="button"
                 onClick={() => centerCurrentNode(fullscreenTreeRef.current)}
                 className="rounded-2xl border border-gold/30 bg-gold/15 px-4 py-3 text-sm font-semibold text-gold2 active:scale-[0.98]"
               >
-                Centrer §{currentNode.paragraph}
+                Centrer Â§{currentNode.paragraph}
               </button>
             </div>
           </div>
@@ -463,8 +464,8 @@ export function JourneyScreen({
           >
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="font-serif text-3xl text-parchment">§{selectedNode.paragraph}</p>
-                <p className="text-xs text-muted">Visité : {formatVisitDate(selectedNode.visitedAt)}</p>
+                <p className="font-serif text-3xl text-parchment">Â§{selectedNode.paragraph}</p>
+                <p className="text-xs text-muted">VisitÃ© : {formatVisitDate(selectedNode.visitedAt)}</p>
               </div>
               <button
                 type="button"
@@ -484,7 +485,7 @@ export function JourneyScreen({
             </div>
 
             <div>
-              <p className="mb-2 font-serif text-xs uppercase tracking-widest text-gold2">Choix proposés</p>
+              <p className="mb-2 font-serif text-xs uppercase tracking-widest text-gold2">Choix proposÃ©s</p>
               <div className="space-y-2">
                 {(selectedNode.choices ?? []).length ? (selectedNode.choices ?? []).map((choice) => {
                   const status = choiceStatus(choice, selectedNode, journey.nodes);
@@ -512,11 +513,11 @@ export function JourneyScreen({
                       }}
                       className="flex w-full items-center justify-between rounded-xl border border-line/70 bg-black/20 px-3 py-2 text-left active:scale-[0.99]"
                     >
-                      <span className="font-serif text-base font-bold text-parchment">→ §{choice.to}</span>
+                      <span className="font-serif text-base font-bold text-parchment">â†’ Â§{choice.to}</span>
                       <span className={`text-sm ${status.className}`}>{status.icon} {status.label}</span>
                     </button>
                   );
-                }) : <p className="text-sm text-muted">Aucun choix enregistré.</p>}
+                }) : <p className="text-sm text-muted">Aucun choix enregistrÃ©.</p>}
               </div>
             </div>
           </div>

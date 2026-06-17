@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Adventure, AdventureLibraryAction, Category, CombatRound, DiceRoll, Item, ItemEffect, JourneyEvent, JourneyNode, JourneyTag, Monster, NewAdventureData, Screen } from "@/lib/types";
 import { makeAdventureFromData, makeInitialJourney, starter, STORAGE, uid } from "@/lib/templates";
-import { effectiveStatValue } from "@/lib/effects";
+import { effectiveStatValue, itemEffectSummary } from "@/lib/effects";
 import { repairStoredText } from "@/lib/text";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { CombatScreen } from "@/components/screens/CombatScreen";
@@ -435,6 +435,23 @@ export default function CarnetApp() {
 
   const categoryOptions: Category[] = ["Objets", "Armes", "Armures", "Sorts", "Autres"];
 
+  const iconOptions = ["🎒", "🧪", "🗝️", "⚔️", "🛡️", "🧙", "🔥", "💎", "📜", "🪙", "🍞", "🏹", "💍", "🕯️", "🧭"];
+
+  const defaultIconForCategory = (kind: Category) => {
+    if (kind === "Armes") return "⚔️";
+    if (kind === "Armures") return "🛡️";
+    if (kind === "Sorts") return "🧙";
+    return "🎒";
+  };
+
+  const defaultIconForPreset = (preset: string, kind: Category) => {
+    if (preset === "Soigne / restaure") return "🧪";
+    if (preset === "Objet clé") return "🗝️";
+    if (preset === "Sort ou pouvoir limité") return "🧙";
+    if (preset === "S'utilise en combat") return kind === "Sorts" ? "🔥" : "⚔️";
+    return defaultIconForCategory(kind);
+  };
+
   const boolFromSelect = (value: string | undefined) => value === "Oui";
 
   const effectOptions = () => [
@@ -534,6 +551,7 @@ export default function CarnetApp() {
     });
     const preset = presetValues?.preset ?? "Rien de spécial";
     if (preset === "Rien de spécial") return item;
+    const shouldUsePresetIcon = item.icon === defaultIconForCategory(item.kind) || ["I", "A", "D", "S", "K"].includes(item.icon);
 
     const afterUseOptions = ["Ne disparaît pas", "Perd 1 charge", "Perd 1 quantité", "Disparaît après usage", "Devient inutilisable"];
     const durationOptions = ["Instantané", "Prochain jet", "Prochain assaut", "Combat en cours", "Jusqu'au prochain paragraphe", "Permanent"];
@@ -542,7 +560,7 @@ export default function CarnetApp() {
       return {
         ...item,
         subtitle: "Objet clé",
-        icon: item.icon === "I" ? "K" : item.icon,
+        icon: shouldUsePresetIcon ? defaultIconForPreset(preset, item.kind) : item.icon,
         notes: "Objet important à conserver.",
         combatUsable: false,
         useCost: "none",
@@ -578,6 +596,7 @@ export default function CarnetApp() {
 
     return {
       ...item,
+      icon: shouldUsePresetIcon ? defaultIconForPreset(preset, item.kind) : item.icon,
       subtitle: effects.length ? effects.map((effect) => `${effect.delta > 0 ? "+" : ""}${effect.delta} ${effect.statName}`).join(", ") : item.subtitle,
       notes: `${preset}. Durée : ${config?.duration ?? effectDefaults.duration}. Après usage : ${config?.afterUse ?? effectDefaults.afterUse}.`,
       uses: useCost === "charge" ? Math.max(1, Number(config?.uses) || 1) : Math.max(0, Number(config?.uses) || 0),
@@ -598,12 +617,14 @@ export default function CarnetApp() {
       fields: [
         { name: "name", label: "Nom", placeholder: "Ex. Clé d'argent" },
         { name: "kind", label: "Catégorie", type: "select", value: category, options: categoryOptions },
+        { name: "icon", label: "Icône", type: "select", value: defaultIconForCategory(category), options: iconOptions },
         { name: "quantity", label: "Quantité", type: "number", value: "1" },
       ],
     });
     const name = values?.name.trim();
     if (!name) return;
     const kind = categoryOptions.includes(values?.kind as Category) ? (values?.kind as Category) : category;
+    const icon = iconOptions.includes(values?.icon ?? "") ? values?.icon ?? defaultIconForCategory(kind) : defaultIconForCategory(kind);
     const quantity = Math.max(1, Number(values?.quantity) || 1);
     const baseItem: Item = {
       id: uid(),
@@ -611,7 +632,7 @@ export default function CarnetApp() {
       kind,
       quantity,
       subtitle: "Objet personnalisé",
-      icon: kind === "Armes" ? "A" : kind === "Armures" ? "D" : kind === "Sorts" ? "S" : "I",
+      icon,
       wearable: kind === "Armes" || kind === "Armures",
       worn: false,
       bonusActiveWhenWorn: true,
@@ -1068,12 +1089,96 @@ export default function CarnetApp() {
       return;
     }
 
+    if (kind === "itemUse") {
+      const usableItems = selected.items.filter((item) => item.quantity > 0);
+      const values = await requestForm({
+        title: "Objet utilisé",
+        description: "L'utilisation sera ajoutée au paragraphe courant.",
+        fields: [
+          {
+            name: "itemName",
+            label: "Objet",
+            type: "select",
+            value: usableItems[0]?.name ?? "",
+            options: usableItems.map((item) => item.name),
+          },
+          { name: "note", label: "Note", type: "textarea", placeholder: "Ex. utilisé pour ouvrir une porte, boire une potion..." },
+        ],
+      });
+      const item = usableItems.find((candidate) => candidate.name === values?.itemName);
+      if (!item) return;
+
+      let nextStats = selected.stats;
+      let nextResources = selected.resources;
+      item.effects?.forEach((effect) => {
+        if (effect.collection === "resources") {
+          nextResources = nextResources.map((resource) => {
+            if (resource.id !== effect.statId && resource.name !== effect.statName) return resource;
+            const nextValue = Math.max(0, resource.current + effect.delta);
+            return { ...resource, current: resource.max ? Math.min(resource.max, nextValue) : nextValue };
+          });
+          return;
+        }
+
+        nextStats = nextStats.map((stat) => {
+          if (stat.id !== effect.statId && stat.name !== effect.statName) return stat;
+          const nextValue = Math.max(0, stat.current + effect.delta);
+          return { ...stat, current: stat.max ? Math.min(stat.max, nextValue) : nextValue };
+        });
+      });
+
+      const useCost = item.useCost ?? (item.consumedOnUse ? "quantity" : "none");
+      const nextItems = selected.items.map((candidate) => {
+        if (candidate.id !== item.id) return candidate;
+        return {
+          ...candidate,
+          uses: useCost === "charge" && candidate.uses ? Math.max(0, candidate.uses - 1) : candidate.uses,
+          quantity:
+            useCost === "quantity" || useCost === "destroy"
+              ? Math.max(0, candidate.quantity - 1)
+              : candidate.quantity,
+          combatUsable: useCost === "disable" ? false : candidate.combatUsable,
+          useCost: useCost === "disable" ? "disable" : candidate.useCost,
+        };
+      });
+      const summary = [values?.note.trim(), itemEffectSummary(item)].filter(Boolean).join(" · ");
+      setSelected({
+        stats: nextStats,
+        resources: nextResources,
+        items: nextItems,
+        journey: {
+          ...selected.journey,
+          nodes: selected.journey.nodes.map((current) =>
+            current.id === nodeId
+              ? {
+                  ...current,
+                  tags: current.tags.includes("itemUse") ? current.tags : [...current.tags, "itemUse"],
+                  events: [
+                    ...(current.events ?? []),
+                    {
+                      id: uid(),
+                      kind: "itemUse",
+                      label: `Utilisé : ${item.name}`,
+                      refId: item.id,
+                      createdAt,
+                      result: summary || undefined,
+                    },
+                  ],
+                }
+              : { ...current, events: current.events ?? [], choices: current.choices ?? [] },
+          ),
+        },
+      });
+      return;
+    }
+
     const labels: Record<JourneyTag, string> = {
       death: "Mort",
       combat: "Combat",
       dice: "Dé",
       spell: "Sort",
       item: "Objet",
+      itemUse: "Objet utilisé",
       important: "Important",
       key: "Clé",
       secret: "Secret",
@@ -1090,7 +1195,7 @@ export default function CarnetApp() {
   };
 
   const openJourneyEvent = (event: JourneyEvent) => {
-    if (event.kind === "item" || event.kind === "key" || event.kind === "spell") {
+    if (event.kind === "item" || event.kind === "itemUse" || event.kind === "key" || event.kind === "spell") {
       const item = selected.items.find((candidate) => candidate.id === event.refId);
       if (item) setCategory(item.kind);
       setScreen("inventory");
@@ -1255,6 +1360,17 @@ export default function CarnetApp() {
     const extraRolls: DiceRoll[] = round.actions
       .filter((action) => action.type === "dice")
       .map((action) => action.roll);
+    const itemUseEvents: JourneyEvent[] = round.actions
+      .filter((action) => action.type === "item")
+      .map((action) => ({
+        id: uid(),
+        kind: "itemUse" as const,
+        label: `Utilisé : ${action.itemName}`,
+        refId: action.itemId,
+        createdAt: round.createdAt,
+        result: action.note,
+      }));
+    const itemUseNodeId = monster.sourceNodeId ?? selected.journey?.currentNodeId;
 
     setSelected({
       diceHistory: [primaryRoll, ...extraRolls, ...(selected.diceHistory ?? [])].slice(0, 100),
@@ -1274,25 +1390,32 @@ export default function CarnetApp() {
       journey: selected.journey
         ? {
             ...selected.journey,
-            nodes: selected.journey.nodes.map((node) => ({
-              ...node,
-              events: (node.events ?? []).map((event) =>
-                event.refId === monsterId && event.kind === "combat"
-                  ? {
-                      ...event,
-                      result:
-                        combatResult === "victory"
-                          ? "Victoire"
-                          : combatResult === "defeat"
-                            ? "Défaite"
-                            : combatResult === "interrupted"
-                              ? "Interrompu"
-                              : "En cours",
-                    }
-                  : event,
-              ),
-              choices: node.choices ?? [],
-            })),
+            nodes: selected.journey.nodes.map((node) => {
+              const isItemUseNode = Boolean(itemUseNodeId && node.id === itemUseNodeId && itemUseEvents.length);
+              return {
+                ...node,
+                tags: isItemUseNode && !node.tags.includes("itemUse") ? [...node.tags, "itemUse"] : node.tags,
+                events: [
+                  ...(node.events ?? []).map((event) =>
+                    event.refId === monsterId && event.kind === "combat"
+                      ? {
+                          ...event,
+                          result:
+                            combatResult === "victory"
+                              ? "Victoire"
+                              : combatResult === "defeat"
+                                ? "Défaite"
+                                : combatResult === "interrupted"
+                                  ? "Interrompu"
+                                  : "En cours",
+                        }
+                      : event,
+                  ),
+                  ...(isItemUseNode ? itemUseEvents : []),
+                ],
+                choices: node.choices ?? [],
+              };
+            }),
           }
         : selected.journey,
     });
