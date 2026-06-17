@@ -445,10 +445,10 @@ export default function CarnetApp() {
   };
 
   const defaultIconForPreset = (preset: string, kind: Category) => {
-    if (preset === "Soigne / restaure") return "🧪";
-    if (preset === "Objet clé") return "🗝️";
+    if (preset === "Consommable") return "🧪";
+    if (preset === "Objet simple") return "🎒";
+    if (preset === "Équipement") return kind === "Armures" ? "🛡️" : "⚔️";
     if (preset === "Sort ou pouvoir limité") return "🧙";
-    if (preset === "S'utilise en combat") return kind === "Sorts" ? "🔥" : "⚔️";
     return defaultIconForCategory(kind);
   };
 
@@ -524,88 +524,84 @@ export default function CarnetApp() {
   const applyItemPreset = async (item: Item): Promise<Item> => {
     const presetValues = await requestForm({
       title: "Que fait cet objet?",
-      description: "Choisis le comportement principal. Tu pourras toujours l'ajuster avec Modifier.",
+      description: "Choisis d'abord son genre. Les options viennent ensuite.",
       submitLabel: "Continuer",
       fields: [
         {
           name: "preset",
-          label: "Type d'objet",
+          label: "Genre d'objet",
           type: "select",
           value:
             item.kind === "Sorts"
               ? "Sort ou pouvoir limité"
               : item.kind === "Armes" || item.kind === "Armures"
-                ? "Se porte"
-                : "Rien de spécial",
-          options: [
-            "Rien de spécial",
-            "Soigne / restaure",
-            "Donne un bonus",
-            "Se porte",
-            "S'utilise en combat",
-            "Objet clé",
-            "Sort ou pouvoir limité",
-          ],
+                ? "Équipement"
+                : "Objet simple",
+          options: ["Objet simple", "Consommable", "Équipement", "Sort ou pouvoir limité"],
         },
       ],
     });
-    const preset = presetValues?.preset ?? "Rien de spécial";
-    if (preset === "Rien de spécial") return item;
+    const preset = presetValues?.preset ?? "Objet simple";
     const shouldUsePresetIcon = item.icon === defaultIconForCategory(item.kind) || ["I", "A", "D", "S", "K"].includes(item.icon);
 
     const afterUseOptions = ["Ne disparaît pas", "Perd 1 charge", "Perd 1 quantité", "Disparaît après usage", "Devient inutilisable"];
     const durationOptions = ["Instantané", "Prochain jet", "Prochain assaut", "Combat en cours", "Jusqu'au prochain paragraphe", "Permanent"];
+    const effectDefaults =
+      preset === "Consommable"
+        ? { title: "Effet à l'utilisation", delta: "4", duration: "Instantané", afterUse: "Perd 1 quantité", combat: "Oui" }
+        : preset === "Équipement"
+          ? { title: "Options d'équipement", delta: "1", duration: "Permanent", afterUse: "Ne disparaît pas", combat: "Oui" }
+          : preset === "Sort ou pouvoir limité"
+            ? { title: "Sort ou pouvoir limité", delta: "2", duration: "Instantané", afterUse: "Perd 1 charge", combat: "Oui" }
+            : { title: "Options de l'objet", delta: "0", duration: "Instantané", afterUse: "Ne disparaît pas", combat: "Non" };
 
-    if (preset === "Objet clé") {
-      return {
-        ...item,
-        subtitle: "Objet clé",
-        icon: shouldUsePresetIcon ? defaultIconForPreset(preset, item.kind) : item.icon,
-        notes: "Objet important à conserver.",
-        combatUsable: false,
-        useCost: "none",
-      };
+    const fields: ModalField[] = [
+      { name: "important", label: "Marquer comme important / objet clé", type: "select", value: "Non", options: ["Non", "Oui"] },
+    ];
+
+    if (preset === "Équipement") {
+      fields.push(
+        { name: "wearable", label: "Peut être porté", type: "select", value: "Oui", options: ["Oui", "Non"] },
+        { name: "worn", label: "Porté au départ", type: "select", value: "Oui", options: ["Oui", "Non"] },
+        { name: "hasEffect", label: "Bonus quand il est porté", type: "select", value: "Oui", options: ["Oui", "Non"] },
+      );
+    } else {
+      fields.push({ name: "hasEffect", label: "Effet quand on l'utilise", type: "select", value: preset === "Objet simple" ? "Non" : "Oui", options: ["Oui", "Non"] });
     }
 
-    const effectDefaults =
-      preset === "Soigne / restaure"
-        ? { title: "Effet de soin", delta: "4", duration: "Instantané", afterUse: "Perd 1 quantité" }
-        : preset === "Se porte"
-          ? { title: "Équipement porté", delta: item.kind === "Armures" ? "1" : "1", duration: "Permanent", afterUse: "Ne disparaît pas" }
-          : preset === "Sort ou pouvoir limité"
-            ? { title: "Sort ou pouvoir limité", delta: "2", duration: "Instantané", afterUse: "Perd 1 charge" }
-            : preset === "S'utilise en combat"
-              ? { title: "Objet de combat", delta: "2", duration: "Prochain assaut", afterUse: "Perd 1 charge" }
-              : { title: "Bonus", delta: "1", duration: "Permanent", afterUse: "Ne disparaît pas" };
+    fields.push({ name: "combatUsable", label: "Peut être utilisé en combat", type: "select", value: effectDefaults.combat, options: ["Oui", "Non"] });
+    fields.push(
+      { name: "effectTarget", label: "Effet sur", type: "select", value: effectOptions()[1] ?? "Aucun", options: effectOptions() },
+      { name: "effectDelta", label: "Bonus / malus", type: "number", value: effectDefaults.delta },
+      { name: "duration", label: "Durée", type: "select", value: effectDefaults.duration, options: durationOptions },
+      { name: "afterUse", label: "Après usage", type: "select", value: effectDefaults.afterUse, options: afterUseOptions },
+      { name: "uses", label: "Charges / utilisations", type: "number", value: effectDefaults.afterUse === "Perd 1 charge" ? "3" : "0" },
+    );
 
     const config = await requestForm({
       title: effectDefaults.title,
       submitLabel: "Créer l'objet",
-      fields: [
-        { name: "effectTarget", label: "Effet sur", type: "select", value: effectOptions()[1] ?? "Aucun", options: effectOptions() },
-        { name: "effectDelta", label: "Bonus / malus", type: "number", value: effectDefaults.delta },
-        { name: "duration", label: "Durée", type: "select", value: effectDefaults.duration, options: durationOptions },
-        { name: "afterUse", label: "Après usage", type: "select", value: effectDefaults.afterUse, options: afterUseOptions },
-        { name: "uses", label: "Charges / utilisations", type: "number", value: effectDefaults.afterUse === "Perd 1 charge" ? "3" : "0" },
-      ],
+      fields,
     });
 
     const useCost = useCostFromLabel(config?.afterUse);
-    const effects = effectFromValues(config?.effectTarget, config?.effectDelta, config?.duration);
-    const wearable = preset === "Se porte" || config?.duration === "Permanent";
+    const hasEffect = boolFromSelect(config?.hasEffect);
+    const effects = hasEffect ? effectFromValues(config?.effectTarget, config?.effectDelta, config?.duration) : [];
+    const wearable = preset === "Équipement" && boolFromSelect(config?.wearable);
+    const important = boolFromSelect(config?.important);
 
     return {
       ...item,
       icon: shouldUsePresetIcon ? defaultIconForPreset(preset, item.kind) : item.icon,
-      subtitle: effects.length ? effects.map((effect) => `${effect.delta > 0 ? "+" : ""}${effect.delta} ${effect.statName}`).join(", ") : item.subtitle,
-      notes: `${preset}. Durée : ${config?.duration ?? effectDefaults.duration}. Après usage : ${config?.afterUse ?? effectDefaults.afterUse}.`,
+      subtitle: important ? "Objet clé" : effects.length ? effects.map((effect) => `${effect.delta > 0 ? "+" : ""}${effect.delta} ${effect.statName}`).join(", ") : preset,
+      notes: `${preset}${important ? " · Important" : ""}. Durée : ${config?.duration ?? effectDefaults.duration}. Après usage : ${config?.afterUse ?? effectDefaults.afterUse}.`,
       uses: useCost === "charge" ? Math.max(1, Number(config?.uses) || 1) : Math.max(0, Number(config?.uses) || 0),
       consumedOnUse: useCost === "quantity" || useCost === "destroy",
       useCost,
       wearable,
-      worn: preset === "Se porte",
+      worn: wearable && boolFromSelect(config?.worn),
       bonusActiveWhenWorn: wearable,
-      combatUsable: preset === "S'utilise en combat" || preset === "Sort ou pouvoir limité" || config?.duration === "Prochain assaut" || config?.duration === "Combat en cours",
+      combatUsable: boolFromSelect(config?.combatUsable),
       effects,
     };
   };
