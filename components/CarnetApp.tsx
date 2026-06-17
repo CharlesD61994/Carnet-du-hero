@@ -1130,13 +1130,17 @@ export default function CarnetApp() {
       const useCost = item.useCost ?? (item.consumedOnUse ? "quantity" : "none");
       const nextItems = selected.items.map((candidate) => {
         if (candidate.id !== item.id) return candidate;
+        const hasCharges = (candidate.uses ?? 0) > 0;
+        const nextUses = hasCharges ? Math.max(0, (candidate.uses ?? 0) - 1) : candidate.uses;
+        const chargesAreEmpty = hasCharges && nextUses === 0;
+        const shouldConsumeQuantity =
+          useCost === "destroy" ||
+          (useCost === "quantity" && (!hasCharges || chargesAreEmpty));
+
         return {
           ...candidate,
-          uses: useCost === "charge" && candidate.uses ? Math.max(0, candidate.uses - 1) : candidate.uses,
-          quantity:
-            useCost === "quantity" || useCost === "destroy"
-              ? Math.max(0, candidate.quantity - 1)
-              : candidate.quantity,
+          uses: useCost === "charge" || useCost === "quantity" || useCost === "destroy" ? nextUses : candidate.uses,
+          quantity: shouldConsumeQuantity ? Math.max(0, candidate.quantity - 1) : candidate.quantity,
           combatUsable: useCost === "disable" ? false : candidate.combatUsable,
           useCost: useCost === "disable" ? "disable" : candidate.useCost,
         };
@@ -1291,13 +1295,17 @@ export default function CarnetApp() {
         nextItems = nextItems.map((item) => {
           if (item.id !== action.itemId) return item;
           const useCost = item.useCost ?? (item.consumedOnUse ? "quantity" : "none");
+          const hasCharges = (item.uses ?? 0) > 0;
+          const nextUses = hasCharges ? Math.max(0, (item.uses ?? 0) - 1) : item.uses;
+          const chargesAreEmpty = hasCharges && nextUses === 0;
+          const shouldConsumeQuantity =
+            useCost === "destroy" ||
+            (useCost === "quantity" && (!hasCharges || chargesAreEmpty));
+
           return {
             ...item,
-            uses: useCost === "charge" && item.uses ? Math.max(0, item.uses - 1) : item.uses,
-            quantity:
-              useCost === "quantity" || useCost === "destroy"
-                ? Math.max(0, item.quantity - 1)
-                : item.quantity,
+            uses: useCost === "charge" || useCost === "quantity" || useCost === "destroy" ? nextUses : item.uses,
+            quantity: shouldConsumeQuantity ? Math.max(0, item.quantity - 1) : item.quantity,
             combatUsable: useCost === "disable" ? false : item.combatUsable,
             useCost: useCost === "disable" ? "disable" : item.useCost,
           };

@@ -704,7 +704,17 @@ function CombatMonsterCard({
               ) : null}
             </div>
 
-            {round.outcome !== "tie" ? (
+            {round.outcome === "tie" ? (
+              <div className="rounded-2xl border border-line/70 bg-black/20 p-2">
+                <button
+                  type="button"
+                  onClick={() => confirmTurn(m.id)}
+                  className="w-full rounded-xl border border-gold/50 bg-gold/25 px-3 py-2 text-sm font-bold text-gold2 active:scale-[.99]"
+                >
+                  Continuer
+                </button>
+              </div>
+            ) : (
               <div className="rounded-2xl border border-gold/30 bg-gold/10 p-2">
                 {luckAttempt ? (
                   <div className="space-y-2">
@@ -742,7 +752,7 @@ function CombatMonsterCard({
                   </div>
                 )}
               </div>
-            ) : null}
+            )}
 
             <div className="grid grid-cols-2 gap-2">
               <button
