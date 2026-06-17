@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Adventure, AdventureLibraryAction, Category, CombatRound, DiceRoll, Item, ItemEffect, JourneyEvent, JourneyNode, JourneyTag, Monster, NewAdventureData, Screen } from "@/lib/types";
 import { makeAdventureFromData, makeInitialJourney, starter, STORAGE, uid } from "@/lib/templates";
 import { effectiveStatValue } from "@/lib/effects";
+import { repairStoredText } from "@/lib/text";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { CombatScreen } from "@/components/screens/CombatScreen";
 import { EditScreen } from "@/components/screens/EditScreen";
@@ -89,7 +90,7 @@ function ThemedFormModal({
             onClick={onCancel}
             className="shrink-0 rounded-full border border-line bg-black/20 px-3 py-2 text-sm text-muted active:scale-[0.98]"
           >
-            Ã—
+            ×
           </button>
         </div>
 
@@ -187,7 +188,7 @@ export default function CarnetApp() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE);
-      const list = (raw ? (JSON.parse(raw) as Adventure[]) : starter()).map(withAdventureDefaults);
+      const list = repairStoredText(raw ? (JSON.parse(raw) as Adventure[]) : starter()).map(withAdventureDefaults);
       setAdventures(list);
       setSelectedId(list[0]?.id ?? "");
     } catch {
@@ -258,7 +259,7 @@ export default function CarnetApp() {
       if (next.length === 0) {
         const fresh = makeAdventureFromData({
           title: "Nouvelle aventure",
-          heroName: "HÃ©ros",
+          heroName: "Héros",
           system: "Feuille personnalisée",
           diceConfig: { sides: 6, mode: "single", count: 1 },
         });
@@ -277,8 +278,8 @@ export default function CarnetApp() {
     const adventure = adventures.find((item) => item.id === id);
     if (!adventure) return;
     const values = await requestForm({
-      title: "Renommer lâ€™aventure",
-      fields: [{ name: "title", label: "Nom de lâ€™aventure", value: adventure.title }],
+      title: "Renommer l’aventure",
+      fields: [{ name: "title", label: "Nom de l’aventure", value: adventure.title }],
     });
     const title = values?.title.trim();
     if (!title) return;
@@ -290,7 +291,7 @@ export default function CarnetApp() {
   };
 
   const resetAdventureAttempt = (id: string) => {
-    if (!confirm("RÃ©initialiser la tentative? Lâ€™arbre du parcours sera conservÃ©.")) return;
+    if (!confirm("Réinitialiser la tentative? L’arbre du parcours sera conservé.")) return;
     setAdventures((list) =>
       list.map((item) => {
         if (item.id !== id) return item;
@@ -357,7 +358,7 @@ export default function CarnetApp() {
             {
               id: uid(),
               kind: "important",
-              label: "Nouvelle tentative aprÃ¨s la mort du hÃ©ros",
+              label: "Nouvelle tentative après la mort du héros",
               createdAt: deathAt,
               result: `Tentative ${(item.attempts ?? 1) + 1}`,
             },
@@ -392,7 +393,7 @@ export default function CarnetApp() {
                       label: `Mort contre ${monsterName}`,
                       refId: monsterId,
                       createdAt: deathAt,
-                      result: `Tentative ${item.attempts ?? 1} terminÃ©e`,
+                      result: `Tentative ${item.attempts ?? 1} terminée`,
                     },
                   ],
                   choices: node.choices ?? [],
@@ -570,7 +571,7 @@ export default function CarnetApp() {
   const addNote = async () => {
     const values = await requestForm({
       title: "Nouvelle note",
-      fields: [{ name: "note", label: "Note", type: "textarea", placeholder: "Ã‰cris ta noteâ€¦" }],
+      fields: [{ name: "note", label: "Note", type: "textarea", placeholder: "Écris ta note…" }],
     });
     const note = values?.note.trim();
     if (!note) return;
@@ -599,7 +600,7 @@ export default function CarnetApp() {
       title: "Ajouter un monstre",
       fields: [
         { name: "name", label: "Nom", placeholder: "Ex. Vampire" },
-        { name: "skill", label: "Stat dâ€™attaque", type: "number", value: "6" },
+        { name: "skill", label: "Stat d’attaque", type: "number", value: "6" },
         { name: "endurance", label: "Vie", type: "number", value: "8" },
         { name: "note", label: "Note", type: "textarea" },
       ],
@@ -632,7 +633,7 @@ export default function CarnetApp() {
       title: "Modifier le monstre",
       fields: [
         { name: "name", label: "Nom", value: monster.name },
-        { name: "skill", label: "Stat dâ€™attaque", type: "number", value: String(monster.skill) },
+        { name: "skill", label: "Stat d’attaque", type: "number", value: String(monster.skill) },
         { name: "maxEndurance", label: "Vie maximale", type: "number", value: String(monster.maxEndurance) },
         { name: "endurance", label: "Vie actuelle", type: "number", value: String(monster.endurance) },
         { name: "note", label: "Note", type: "textarea", value: monster.note },
@@ -807,15 +808,15 @@ export default function CarnetApp() {
 
     if (kind === "dice") {
       const values = await requestForm({
-        title: "Nouveau test de dÃ©",
-        description: "DÃ©cris le contexte en une phrase. Le module DÃ©s sâ€™ouvrira ensuite.",
-        submitLabel: "Ouvrir les dÃ©s",
+        title: "Nouveau test de dé",
+        description: "Décris le contexte en une phrase. Le module Dés s’ouvrira ensuite.",
+        submitLabel: "Ouvrir les dés",
         fields: [
           {
             name: "context",
             label: "Contexte",
             type: "textarea",
-            placeholder: "Ex. Ã‰viter le vampire, traverser le pont, rÃ©sister Ã  la peurâ€¦",
+            placeholder: "Ex. Éviter le vampire, traverser le pont, résister à la peur…",
           },
         ],
       });
@@ -827,27 +828,27 @@ export default function CarnetApp() {
     }
 
     if (kind === "item" || kind === "key" || kind === "spell") {
-      const defaultIcon = kind === "key" ? "ðŸ”‘" : kind === "spell" ? "ðŸ§™" : "ðŸŽ’";
+      const defaultIcon = kind === "key" ? "🔑" : kind === "spell" ? "🧙" : "🎒";
       const defaultKind: Category = kind === "spell" ? "Sorts" : "Objets";
       const values = await requestForm({
-        title: kind === "spell" ? "Sort liÃ© au paragraphe" : kind === "key" ? "ClÃ© liÃ©e au paragraphe" : "Objet liÃ© au paragraphe",
-        description: `Cet Ã©lÃ©ment sera ajoutÃ© Ã  lâ€™inventaire et liÃ© au Â§${paragraph}.`,
+        title: kind === "spell" ? "Sort lié au paragraphe" : kind === "key" ? "Clé liée au paragraphe" : "Objet lié au paragraphe",
+        description: `Cet élément sera ajouté à l’inventaire et lié au §${paragraph}.`,
         fields: [
-          { name: "name", label: kind === "spell" ? "Nom du sort" : "Nom de lâ€™objet" },
-          { name: "icon", label: "IcÃ´ne ou emoji", value: defaultIcon },
+          { name: "name", label: kind === "spell" ? "Nom du sort" : "Nom de l’objet" },
+          { name: "icon", label: "Icône ou emoji", value: defaultIcon },
           {
             name: "subtitle",
             label: "Description",
             type: "textarea",
-            value: kind === "key" ? "Objet clÃ©" : `TrouvÃ© au Â§${paragraph}`,
+            value: kind === "key" ? "Objet clé" : `Trouvé au §${paragraph}`,
           },
-          { name: "quantity", label: "QuantitÃ©", type: "number", value: "1" },
+          { name: "quantity", label: "Quantité", type: "number", value: "1" },
         ],
       });
       const name = values?.name.trim();
       if (!name) return;
       const icon = values?.icon.trim() || defaultIcon;
-      const subtitle = values?.subtitle.trim() || `TrouvÃ© au Â§${paragraph}`;
+      const subtitle = values?.subtitle.trim() || `Trouvé au §${paragraph}`;
       const quantity = Math.max(1, Number(values?.quantity) || 1);
       const item: Item = {
         id: uid(),
@@ -884,20 +885,20 @@ export default function CarnetApp() {
 
     if (kind === "combat") {
       const values = await requestForm({
-        title: "Combat liÃ© au paragraphe",
-        description: `Le monstre sera ajoutÃ© au module Combat et liÃ© au Â§${paragraph}.`,
+        title: "Combat lié au paragraphe",
+        description: `Le monstre sera ajouté au module Combat et lié au §${paragraph}.`,
         fields: [
           { name: "name", label: "Nom du monstre", placeholder: "Ex. Vampire" },
-          { name: "skill", label: "HabiletÃ©", type: "number", value: "6" },
+          { name: "skill", label: "Habileté", type: "number", value: "6" },
           { name: "endurance", label: "Endurance", type: "number", value: "8" },
-          { name: "note", label: "Note", type: "textarea", value: `RencontrÃ© au Â§${paragraph}` },
+          { name: "note", label: "Note", type: "textarea", value: `Rencontré au §${paragraph}` },
         ],
       });
       const name = values?.name.trim();
       if (!name) return;
       const skill = Math.max(0, Number(values?.skill) || 6);
       const endurance = Math.max(1, Number(values?.endurance) || 8);
-      const note = values?.note.trim() || `RencontrÃ© au Â§${paragraph}`;
+      const note = values?.note.trim() || `Rencontré au §${paragraph}`;
       const monster: Monster = {
         id: uid(),
         name,
@@ -938,16 +939,16 @@ export default function CarnetApp() {
     const labels: Record<JourneyTag, string> = {
       death: "Mort",
       combat: "Combat",
-      dice: "DÃ©",
+      dice: "Dé",
       spell: "Sort",
       item: "Objet",
       important: "Important",
-      key: "ClÃ©",
+      key: "Clé",
       secret: "Secret",
       danger: "Danger",
     };
     const values = await requestForm({
-      title: "Ã‰vÃ©nement liÃ© au paragraphe",
+      title: "Événement lié au paragraphe",
       fields: [
         { name: "label", label: "Description", type: "textarea", value: labels[kind] },
       ],
@@ -1069,7 +1070,7 @@ export default function CarnetApp() {
     });
 
     const lifeStat =
-      nextStats.find((stat) => /endurance|vie|vitalitÃ©|vitalite|santÃ©|sante|pv/i.test(stat.name)) ??
+      nextStats.find((stat) => /endurance|vie|vitalité|vitalite|santé|sante|pv/i.test(stat.name)) ??
       nextStats[1] ??
       nextStats[0];
     const nextAdventureForEffects = { ...selected, stats: nextStats, resources: nextResources, items: nextItems };
@@ -1126,7 +1127,7 @@ export default function CarnetApp() {
                         combatResult === "victory"
                           ? "Victoire"
                           : combatResult === "defeat"
-                            ? "DÃ©faite"
+                            ? "Défaite"
                             : combatResult === "interrupted"
                               ? "Interrompu"
                               : "En cours",
@@ -1161,7 +1162,7 @@ export default function CarnetApp() {
       diceSides: selected.diceConfig?.sides ?? 6,
       rolls: [],
       total: 0,
-      context: monster ? `Combat quittÃ© contre ${monster.name}` : "Combat quittÃ©",
+      context: monster ? `Combat quitté contre ${monster.name}` : "Combat quitté",
       actions: [{ id: uid(), type: "note", note: reason }],
     };
 
@@ -1200,7 +1201,7 @@ export default function CarnetApp() {
   if (!ready || !selected)
     return (
       <main className="grimoire-bg min-h-screen p-6 text-parchment">
-        Chargementâ€¦
+        Chargement…
       </main>
     );
 

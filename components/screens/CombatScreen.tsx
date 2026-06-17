@@ -31,14 +31,14 @@ function sum(values: number[]) {
 
 function findAttackStat(adventure: Adventure) {
   return (
-    adventure.stats.find((stat) => /habiletÃ©|habilete|attaque|combat|force/i.test(stat.name)) ??
+    adventure.stats.find((stat) => /habileté|habilete|attaque|combat|force/i.test(stat.name)) ??
     adventure.stats[0]
   );
 }
 
 function findLifeStat(adventure: Adventure) {
   return (
-    adventure.stats.find((stat) => /endurance|vie|vitalitÃ©|vitalite|santÃ©|sante|pv/i.test(stat.name)) ??
+    adventure.stats.find((stat) => /endurance|vie|vitalité|vitalite|santé|sante|pv/i.test(stat.name)) ??
     adventure.stats[1] ??
     adventure.stats[0]
   );
@@ -51,7 +51,7 @@ function findLuckStat(adventure: Adventure) {
 function damageActionIds(round?: CombatDraft) {
   if (!round) return [];
   return round.actions
-    .filter((action) => action.type === "stat" && action.note?.includes("dÃ©gÃ¢ts standards"))
+    .filter((action) => action.type === "stat" && action.note?.includes("dégâts standards"))
     .map((action) => action.id);
 }
 
@@ -62,15 +62,15 @@ function alreadyTriedLuck(round?: CombatDraft) {
 function actionSummary(action: CombatAction) {
   if (action.type === "stat") {
     const sign = action.delta > 0 ? "+" : "";
-    return `â¤ï¸ ${action.target === "monster" ? "Monstre" : "HÃ©ros"} Â· ${action.statName} ${sign}${action.delta}${action.note ? ` Â· ${action.note}` : ""}`;
+    return `❤️ ${action.target === "monster" ? "Monstre" : "Héros"} · ${action.statName} ${sign}${action.delta}${action.note ? ` · ${action.note}` : ""}`;
   }
   if (action.type === "item") {
-    return `ðŸŽ’ ${action.itemName}${action.note ? ` Â· ${action.note}` : ""}`;
+    return `🎒 ${action.itemName}${action.note ? ` · ${action.note}` : ""}`;
   }
   if (action.type === "dice") {
-    return `ðŸŽ² ${action.note || "Relancer les dÃ©s"} Â· ${action.roll.count}d${action.roll.sides} = ${action.roll.total}`;
+    return `🎲 ${action.note || "Relancer les dés"} · ${action.roll.count}d${action.roll.sides} = ${action.roll.total}`;
   }
-  return `ðŸ“ ${action.note}`;
+  return `📝 ${action.note}`;
 }
 
 export function CombatScreen({
@@ -157,7 +157,7 @@ export function CombatScreen({
         target: "monster",
         statName: "Endurance",
         delta: -2,
-        note: "Victoire du hÃ©ros : dÃ©gÃ¢ts standards",
+        note: "Victoire du héros : dégâts standards",
       });
     } else if (outcome === "enemy" && lifeStat) {
       actions.push({
@@ -168,7 +168,7 @@ export function CombatScreen({
         statName: lifeStat.name,
         statCollection: "stats",
         delta: -2,
-        note: `Victoire de ${monster.name} : dÃ©gÃ¢ts standards`,
+        note: `Victoire de ${monster.name} : dégâts standards`,
       });
     }
 
@@ -246,8 +246,8 @@ export function CombatScreen({
           statName: "Endurance",
           delta: -nextDamage,
           note: success
-            ? "Chance rÃ©ussie : blessure aggravÃ©e"
-            : "Chance ratÃ©e : blessure rÃ©duite",
+            ? "Chance réussie : blessure aggravée"
+            : "Chance ratée : blessure réduite",
         }
       : {
           id: uid(),
@@ -258,8 +258,8 @@ export function CombatScreen({
           statCollection: "stats",
           delta: -nextDamage,
           note: success
-            ? "Chance rÃ©ussie : dÃ©gÃ¢ts subis rÃ©duits"
-            : "Chance ratÃ©e : dÃ©gÃ¢ts subis aggravÃ©s",
+            ? "Chance réussie : dégâts subis réduits"
+            : "Chance ratée : dégâts subis aggravés",
         };
 
     const luckRoll: DiceRoll = {
@@ -287,7 +287,7 @@ export function CombatScreen({
             {
               id: uid(),
               type: "dice",
-              note: `Chance en combat : ${luckRolls.join(" + ")} = ${luckTotal} / ${effectiveStatValue(adventure, luckStat, "stats")} Â· ${success ? "RÃ©ussite" : "Ã‰chec"}`,
+              note: `Chance en combat : ${luckRolls.join(" + ")} = ${luckTotal} / ${effectiveStatValue(adventure, luckStat, "stats")} · ${success ? "Réussite" : "Échec"}`,
               roll: luckRoll,
             },
             {
@@ -298,7 +298,7 @@ export function CombatScreen({
               statName: luckStat.name,
               statCollection: "stats",
               delta: -1,
-              note: "Tenter sa Chance coÃ»te 1 point",
+              note: "Tenter sa Chance coûte 1 point",
             },
             newDamageAction,
           ],
@@ -316,7 +316,7 @@ export function CombatScreen({
       count,
       rolls,
       total: sum(rolls),
-      context: note || `Relancer les dÃ©s contre ${monster.name}`,
+      context: note || `Relancer les dés contre ${monster.name}`,
       sourceParagraph: monster.sourceParagraph,
       sourceNodeId: monster.sourceNodeId,
     };
@@ -324,7 +324,7 @@ export function CombatScreen({
       id: uid(),
       type: "dice",
       roll,
-      note: note || "Relancer les dÃ©s",
+      note: note || "Relancer les dés",
     });
     setDialog(null);
   };
@@ -444,7 +444,7 @@ export function CombatScreen({
           <Panel className="space-y-3 p-3">
             <h2 className="font-serif text-sm uppercase tracking-wide text-gold2">Historique des combats</h2>
             {completedMonsters.length === 0 ? (
-              <p className="text-sm text-muted">Aucun combat terminÃ© pour le moment.</p>
+              <p className="text-sm text-muted">Aucun combat terminé pour le moment.</p>
             ) : (
               completedMonsters.map((m) => (
                 <CompletedCombatCard key={m.id} monster={m} />
@@ -457,8 +457,8 @@ export function CombatScreen({
       {dialog?.type === "roll" && (
         <RollDialog
           diceSides={diceSides}
-          title={dialog.action ? "Relancer les dÃ©s" : "Lancer les dÃ©s"}
-          description={dialog.action ? "Ce lancer sera ajoutÃ© aux actions du tour." : "Choisis seulement le nombre de dÃ©s. Le type de dÃ© vient de la feuille."}
+          title={dialog.action ? "Relancer les dés" : "Lancer les dés"}
+          description={dialog.action ? "Ce lancer sera ajouté aux actions du tour." : "Choisis seulement le nombre de dés. Le type de dé vient de la feuille."}
           onCancel={() => setDialog(null)}
           onConfirm={(count, note) =>
             dialog.action
@@ -575,11 +575,11 @@ function CombatMonsterCard({
 
   const outcomeTitle =
     round?.outcome === "hero"
-      ? "Assaut remportÃ©"
+      ? "Assaut remporté"
       : round?.outcome === "enemy"
         ? "Assaut perdu"
         : round?.outcome === "tie"
-          ? "Ã‰galitÃ©"
+          ? "Égalité"
           : "";
 
   const outcomeClass =
@@ -595,7 +595,7 @@ function CombatMonsterCard({
         <div className="rounded-2xl border border-gold/25 bg-gradient-to-br from-black/45 via-night to-black/20 p-2.5 shadow-inner">
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-gold/25 bg-black/35 text-2xl">
-              ðŸ‘º
+              👺
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
@@ -608,20 +608,20 @@ function CombatMonsterCard({
                   className="grid h-8 w-8 shrink-0 place-items-center rounded-xl border border-line bg-black/25 text-base text-muted active:scale-[.98]"
                   aria-label="Outils du combat"
                 >
-                  â‹¯
+                  ⋯
                 </button>
               </div>
               <div className="mt-2 flex items-center gap-4 text-base font-bold text-parchment sm:text-lg">
                 <span className="inline-flex items-center gap-1.5 leading-none">
-                  <span className="text-lg sm:text-xl">â¤ï¸</span>
+                  <span className="text-lg sm:text-xl">❤️</span>
                   <span>{m.endurance}/{m.maxEndurance}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 leading-none">
-                  <span className="text-lg sm:text-xl">âš”ï¸</span>
+                  <span className="text-lg sm:text-xl">⚔️</span>
                   <span>{m.skill}</span>
                 </span>
                 <span className="inline-flex items-center gap-1.5 leading-none">
-                  <span className="text-lg sm:text-xl">ðŸ’¥</span>
+                  <span className="text-lg sm:text-xl">💥</span>
                   <span>2</span>
                 </span>
               </div>
@@ -639,7 +639,7 @@ function CombatMonsterCard({
           <div className="grid grid-cols-2 gap-2 rounded-2xl border border-line/70 bg-black/20 p-2">
             <button onClick={() => setDialog({ type: "quit", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-muted active:scale-[.99]">Fuir / quitter</button>
             <button onClick={() => editMonster(m)} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2 active:scale-[.99]">Modifier</button>
-            <button onClick={() => updateMonsterEndurance(m.id, -1)} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">âˆ’ Vie</button>
+            <button onClick={() => updateMonsterEndurance(m.id, -1)} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">− Vie</button>
             <button onClick={() => updateMonsterEndurance(m.id, 1)} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">+ Vie</button>
             {round ? (
               <>
@@ -647,7 +647,7 @@ function CombatMonsterCard({
                 <button onClick={() => setDialog({ type: "stat", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">Stat</button>
                 <button onClick={() => setDialog({ type: "note", monster: m })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">Note</button>
                 <button onClick={() => setDialog({ type: "roll", monster: m, action: true })} className="rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-gold2">Jet secondaire</button>
-                <button onClick={() => cancelTurn(m.id)} className="col-span-2 rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-muted">Annuler lâ€™assaut</button>
+                <button onClick={() => cancelTurn(m.id)} className="col-span-2 rounded-xl border border-line bg-black/20 px-3 py-3 text-sm text-muted">Annuler l’assaut</button>
               </>
             ) : null}
             <button onClick={() => deleteMonster(m.id)} className="col-span-2 rounded-xl border border-red-900/60 bg-red-950/20 px-3 py-3 text-sm text-red-200">Supprimer</button>
@@ -668,7 +668,7 @@ function CombatMonsterCard({
                 className="flex w-full items-center justify-center gap-3 rounded-2xl border border-gold/60 bg-gradient-to-b from-gold/35 to-gold/15 px-4 py-4 font-serif text-base font-bold uppercase tracking-wide text-gold2 shadow-lg active:scale-[.99]"
               >
                 <Swords size={21} />
-                Lancer lâ€™assaut
+                Lancer l’assaut
               </button>
             )}
           </div>
@@ -680,7 +680,7 @@ function CombatMonsterCard({
                   title="Vous"
                   rolls={round.heroRolls ?? round.rolls}
                   diceTotal={round.heroDiceTotal ?? round.total}
-                  bonusLabel="HabiletÃ©"
+                  bonusLabel="Habileté"
                   bonus={round.heroSkill ?? 0}
                   total={round.heroAttackTotal ?? round.total}
                   tone="hero"
@@ -690,7 +690,7 @@ function CombatMonsterCard({
                   title={m.name}
                   rolls={round.enemyRolls ?? []}
                   diceTotal={round.enemyDiceTotal ?? 0}
-                  bonusLabel="HabiletÃ©"
+                  bonusLabel="Habileté"
                   bonus={round.enemySkill ?? m.skill}
                   total={round.enemyAttackTotal ?? 0}
                   tone="enemy"
@@ -699,7 +699,7 @@ function CombatMonsterCard({
               {outcomeTitle ? (
                 <div className={`mt-2 rounded-xl border px-3 py-2 text-center ${outcomeClass}`}>
                   <p className="font-serif text-base font-black uppercase tracking-wide">{outcomeTitle}</p>
-                  {round.outcome === "tie" ? <p className="mt-0.5 text-[0.68rem] text-muted">Aucun dÃ©gÃ¢t.</p> : null}
+                  {round.outcome === "tie" ? <p className="mt-0.5 text-[0.68rem] text-muted">Aucun dégât.</p> : null}
                 </div>
               ) : null}
             </div>
@@ -709,7 +709,7 @@ function CombatMonsterCard({
                 {luckAttempt ? (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="font-serif font-bold uppercase tracking-wide text-gold2">Chance tentÃ©e</span>
+                      <span className="font-serif font-bold uppercase tracking-wide text-gold2">Chance tentée</span>
                       <span className="rounded-full border border-line bg-black/20 px-2 py-0.5 text-[0.68rem] text-parchment">Fait</span>
                     </div>
                     <p className="rounded-xl border border-line/60 bg-black/25 p-2 text-[0.72rem] leading-4 text-parchment">{actionSummary(luckAttempt)}</p>
@@ -750,14 +750,14 @@ function CombatMonsterCard({
                 onClick={() => setDialog({ type: "item", monster: m })}
                 className="rounded-xl border border-gold/35 bg-gold/10 px-3 py-2.5 text-sm font-bold text-gold2 active:scale-[.99]"
               >
-                ðŸŽ’ Objet
+                🎒 Objet
               </button>
               <button
                 type="button"
                 onClick={() => setDialog({ type: "ally", monster: m })}
                 className="rounded-xl border border-line bg-black/20 px-3 py-2.5 text-sm font-bold text-parchment active:scale-[.99]"
               >
-                ðŸ‘¥ AlliÃ©
+                👥 Allié
               </button>
             </div>
           </div>
@@ -793,7 +793,7 @@ function RollingDicePreview({ title, rolls, tone, tick }: { title: string; rolls
           </span>
         ))}
       </div>
-      <p className="mt-2 text-[0.68rem] text-muted">Les dÃ©s roulentâ€¦</p>
+      <p className="mt-2 text-[0.68rem] text-muted">Les dés roulent…</p>
     </div>
   );
 }
@@ -838,7 +838,7 @@ function DiceResultCard({
       <div className="mt-2 flex justify-center gap-1.5">
         {rolls.map((roll, index) => <DiceFace key={`${title}-${index}-${roll}`} value={roll} tone={tone} />)}
       </div>
-      <p className="mt-2 text-xs text-parchment">{rolls.join(" + ") || "â€”"} = {diceTotal}</p>
+      <p className="mt-2 text-xs text-parchment">{rolls.join(" + ") || "—"} = {diceTotal}</p>
       <p className="text-[0.68rem] text-muted">+ {bonus} {bonusLabel}</p>
       <p className={`mt-1 font-serif text-xl font-black ${tone === "hero" ? "text-emerald-200" : "text-red-200"}`}>{total}</p>
     </div>
@@ -846,7 +846,7 @@ function DiceResultCard({
 }
 
 function RoundHistoryLine({ entry, monsterName, number }: { entry: CombatRound; monsterName: string; number: number }) {
-  const outcome = entry.outcome === "hero" ? "Victoire" : entry.outcome === "enemy" ? "Blessure" : entry.outcome === "tie" ? "Ã‰galitÃ©" : "Action";
+  const outcome = entry.outcome === "hero" ? "Victoire" : entry.outcome === "enemy" ? "Blessure" : entry.outcome === "tie" ? "Égalité" : "Action";
   return (
     <div className="rounded-xl border border-line/60 bg-black/20 p-3 text-xs text-muted">
       <div className="flex items-center justify-between gap-2">
@@ -854,7 +854,7 @@ function RoundHistoryLine({ entry, monsterName, number }: { entry: CombatRound; 
         <span className="text-gold2">{outcome}</span>
       </div>
       {entry.heroAttackTotal !== undefined && entry.enemyAttackTotal !== undefined ? (
-        <p className="mt-1">Vous {entry.heroAttackTotal} Â· {monsterName} {entry.enemyAttackTotal}</p>
+        <p className="mt-1">Vous {entry.heroAttackTotal} · {monsterName} {entry.enemyAttackTotal}</p>
       ) : (
         <p className="mt-1">{entry.diceCount}d{entry.diceSides} = {entry.total}</p>
       )}
@@ -874,11 +874,11 @@ function CompletedCombatCard({ monster }: { monster: Monster }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid h-12 w-12 place-items-center rounded-xl border border-line/60 bg-black/30 text-2xl">
-            {monster.combatResult === "defeat" ? <Skull size={22} /> : "ðŸ‘º"}
+            {monster.combatResult === "defeat" ? <Skull size={22} /> : "👺"}
           </div>
           <div className="min-w-0">
             <p className="truncate font-semibold text-parchment">{monster.name}</p>
-            <p className="truncate text-xs text-muted">{monster.sourceParagraph ? `Â§ ${monster.sourceParagraph}` : "Sans paragraphe"} Â· {(monster.combatLog ?? []).length} assaut(s)</p>
+            <p className="truncate text-xs text-muted">{monster.sourceParagraph ? `§ ${monster.sourceParagraph}` : "Sans paragraphe"} · {(monster.combatLog ?? []).length} assaut(s)</p>
           </div>
         </div>
         <span className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold ${statusClass}`}>
@@ -916,7 +916,7 @@ function ModalShell({
             onClick={onCancel}
             className="shrink-0 rounded-full border border-line bg-black/20 px-3 py-2 text-sm text-muted active:scale-[0.98]"
           >
-            Ã—
+            ×
           </button>
         </div>
         {children}
@@ -947,14 +947,14 @@ function RollDialog({
     <ModalShell title={title} description={description} onCancel={onCancel}>
       <div className="space-y-4">
         <div className="rounded-2xl border border-line/70 bg-black/20 p-3">
-          <p className="font-serif text-xs uppercase tracking-wide text-gold2">Nombre de dÃ©s</p>
-          <p className="mt-1 text-xs text-muted">DÃ© configurÃ© : d{diceSides}</p>
+          <p className="font-serif text-xs uppercase tracking-wide text-gold2">Nombre de dés</p>
+          <p className="mt-1 text-xs text-muted">Dé configuré : d{diceSides}</p>
           <div className="mt-3 flex items-center justify-between gap-3">
             <button
               onClick={() => setCount((value) => Math.max(1, value - 1))}
               className="grid h-11 w-11 place-items-center rounded-xl border border-line text-xl text-gold"
             >
-              âˆ’
+              −
             </button>
             <span className="text-3xl font-black text-gold2">{count}</span>
             <button
@@ -973,7 +973,7 @@ function RollDialog({
               value={note}
               onChange={(event) => setNote(event.target.value)}
               rows={4}
-              placeholder="Ex. VÃ©rifier si lâ€™arme magique sâ€™active, gagner un dÃ© supplÃ©mentaireâ€¦"
+              placeholder="Ex. Vérifier si l’arme magique s’active, gagner un dé supplémentaire…"
               className="w-full resize-y rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
             />
           </label>
@@ -1013,7 +1013,7 @@ function StatActionDialog({
   const selectedStat = heroPools.find((stat) => stat.id === heroStatId) ?? heroPools[0];
 
   return (
-    <ModalShell title="Modifier une statistique" description="Utilise cette action pour les dÃ©gÃ¢ts, la chance, la magie, la peur ou toute autre ressource." onCancel={onCancel}>
+    <ModalShell title="Modifier une statistique" description="Utilise cette action pour les dégâts, la chance, la magie, la peur ou toute autre ressource." onCancel={onCancel}>
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
           <button
@@ -1026,7 +1026,7 @@ function StatActionDialog({
             onClick={() => setTarget("hero")}
             className={`rounded-xl border px-3 py-3 text-sm ${target === "hero" ? "border-gold bg-gold/10 text-gold2" : "border-line bg-black/20 text-muted"}`}
           >
-            HÃ©ros
+            Héros
           </button>
         </div>
 
@@ -1059,7 +1059,7 @@ function StatActionDialog({
               onClick={() => setDelta((value) => value - 1)}
               className="grid h-11 w-11 place-items-center rounded-xl border border-line text-xl text-gold"
             >
-              âˆ’
+              −
             </button>
             <span className="text-3xl font-black text-gold2">{delta > 0 ? `+${delta}` : delta}</span>
             <button
@@ -1077,7 +1077,7 @@ function StatActionDialog({
             value={note}
             onChange={(event) => setNote(event.target.value)}
             rows={3}
-            placeholder="Ex. dÃ©gÃ¢ts, chance utilisÃ©e, sort lancÃ©â€¦"
+            placeholder="Ex. dégâts, chance utilisée, sort lancé…"
             className="w-full resize-y rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
           />
         </label>
@@ -1150,7 +1150,7 @@ function ItemActionDialog({
             value={note}
             onChange={(event) => setNote(event.target.value)}
             rows={4}
-            placeholder="Ex. potion de guÃ©rison, arme magique, flÃ¨che empoisonnÃ©eâ€¦"
+            placeholder="Ex. potion de guérison, arme magique, flèche empoisonnée…"
             className="w-full resize-y rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
           />
         </label>
@@ -1194,7 +1194,7 @@ function NoteActionDialog({
           value={note}
           onChange={(event) => setNote(event.target.value)}
           rows={6}
-          placeholder="Ã‰cris ce qui sâ€™est passÃ© pendant ce tourâ€¦"
+          placeholder="Écris ce qui s’est passé pendant ce tour…"
           className="w-full resize-y rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
         />
         <div className="grid grid-cols-2 gap-3">
@@ -1226,18 +1226,18 @@ function AllyActionDialog({
   const [allyName, setAllyName] = useState("");
   const [note, setNote] = useState("");
 
-  const label = allyName.trim() || "AlliÃ©";
-  const detail = note.trim() || `Intervention dâ€™alliÃ© pendant le combat contre ${monster.name}.`;
+  const label = allyName.trim() || "Allié";
+  const detail = note.trim() || `Intervention d’allié pendant le combat contre ${monster.name}.`;
 
   return (
-    <ModalShell title="Intervention dâ€™alliÃ©" description="Note lâ€™action dâ€™un compagnon, dâ€™un alliÃ© ou dâ€™une monture pendant ce combat." onCancel={onCancel}>
+    <ModalShell title="Intervention d’allié" description="Note l’action d’un compagnon, d’un allié ou d’une monture pendant ce combat." onCancel={onCancel}>
       <div className="space-y-4">
         <label className="block">
-          <span className="mb-2 block font-serif text-xs uppercase tracking-wide text-gold2">Nom de lâ€™alliÃ©</span>
+          <span className="mb-2 block font-serif text-xs uppercase tracking-wide text-gold2">Nom de l’allié</span>
           <input
             value={allyName}
             onChange={(event) => setAllyName(event.target.value)}
-            placeholder="Ex. Mungo, compagnon, montureâ€¦"
+            placeholder="Ex. Mungo, compagnon, monture…"
             className="w-full rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
           />
         </label>
@@ -1247,7 +1247,7 @@ function AllyActionDialog({
             value={note}
             onChange={(event) => setNote(event.target.value)}
             rows={5}
-            placeholder="Ex. attaque un deuxiÃ¨me adversaire, encaisse un coup, donne un bonus, fuitâ€¦"
+            placeholder="Ex. attaque un deuxième adversaire, encaisse un coup, donne un bonus, fuit…"
             className="w-full resize-y rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
           />
         </label>
@@ -1256,7 +1256,7 @@ function AllyActionDialog({
             Annuler
           </button>
           <button
-            onClick={() => onConfirm({ id: uid(), type: "note", note: `ðŸ‘¥ ${label} Â· ${detail}` })}
+            onClick={() => onConfirm({ id: uid(), type: "note", note: `👥 ${label} · ${detail}` })}
             className="rounded-2xl border border-gold/40 bg-gold/20 px-4 py-3 font-semibold text-gold2"
           >
             Ajouter
@@ -1279,13 +1279,13 @@ function QuitCombatDialog({
   const [reason, setReason] = useState("");
 
   return (
-    <ModalShell title={`Quitter le combat contre ${monster.name}`} description="La raison sera enregistrÃ©e dans le rÃ©sumÃ© du combat." onCancel={onCancel}>
+    <ModalShell title={`Quitter le combat contre ${monster.name}`} description="La raison sera enregistrée dans le résumé du combat." onCancel={onCancel}>
       <div className="space-y-4">
         <textarea
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           rows={5}
-          placeholder="Ex. Le vampire sâ€™enfuit, le livre demande dâ€™aller au Â§142, combat interrompuâ€¦"
+          placeholder="Ex. Le vampire s’enfuit, le livre demande d’aller au §142, combat interrompu…"
           className="w-full resize-y rounded-2xl border border-line bg-black/25 px-4 py-3 text-sm text-parchment outline-none placeholder:text-muted focus:border-gold/50"
         />
         <div className="grid grid-cols-2 gap-3">
@@ -1293,7 +1293,7 @@ function QuitCombatDialog({
             Annuler
           </button>
           <button
-            onClick={() => onConfirm(reason.trim() || "Combat quittÃ© manuellement.")}
+            onClick={() => onConfirm(reason.trim() || "Combat quitté manuellement.")}
             className="rounded-2xl border border-gold/40 bg-gold/20 px-4 py-3 font-semibold text-gold2"
           >
             Confirmer
