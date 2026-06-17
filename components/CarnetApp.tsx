@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Adventure, AdventureLibraryAction, Category, CombatRound, DiceRoll, Item, JourneyEvent, JourneyNode, JourneyTag, Monster, NewAdventureData, Screen } from "@/lib/types";
+import type { Adventure, AdventureLibraryAction, Category, CombatRound, DiceRoll, Item, ItemEffect, JourneyEvent, JourneyNode, JourneyTag, Monster, NewAdventureData, Screen } from "@/lib/types";
 import { makeAdventureFromData, makeInitialJourney, starter, STORAGE, uid } from "@/lib/templates";
+import { effectiveStatValue } from "@/lib/effects";
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { CombatScreen } from "@/components/screens/CombatScreen";
 import { EditScreen } from "@/components/screens/EditScreen";
@@ -88,7 +89,7 @@ function ThemedFormModal({
             onClick={onCancel}
             className="shrink-0 rounded-full border border-line bg-black/20 px-3 py-2 text-sm text-muted active:scale-[0.98]"
           >
-            ×
+            Ã—
           </button>
         </div>
 
@@ -257,7 +258,7 @@ export default function CarnetApp() {
       if (next.length === 0) {
         const fresh = makeAdventureFromData({
           title: "Nouvelle aventure",
-          heroName: "Héros",
+          heroName: "HÃ©ros",
           system: "Feuille personnalisée",
           diceConfig: { sides: 6, mode: "single", count: 1 },
         });
@@ -276,8 +277,8 @@ export default function CarnetApp() {
     const adventure = adventures.find((item) => item.id === id);
     if (!adventure) return;
     const values = await requestForm({
-      title: "Renommer l’aventure",
-      fields: [{ name: "title", label: "Nom de l’aventure", value: adventure.title }],
+      title: "Renommer lâ€™aventure",
+      fields: [{ name: "title", label: "Nom de lâ€™aventure", value: adventure.title }],
     });
     const title = values?.title.trim();
     if (!title) return;
@@ -289,7 +290,7 @@ export default function CarnetApp() {
   };
 
   const resetAdventureAttempt = (id: string) => {
-    if (!confirm("Réinitialiser la tentative? L’arbre du parcours sera conservé.")) return;
+    if (!confirm("RÃ©initialiser la tentative? Lâ€™arbre du parcours sera conservÃ©.")) return;
     setAdventures((list) =>
       list.map((item) => {
         if (item.id !== id) return item;
@@ -356,7 +357,7 @@ export default function CarnetApp() {
             {
               id: uid(),
               kind: "important",
-              label: "Nouvelle tentative après la mort du héros",
+              label: "Nouvelle tentative aprÃ¨s la mort du hÃ©ros",
               createdAt: deathAt,
               result: `Tentative ${(item.attempts ?? 1) + 1}`,
             },
@@ -391,7 +392,7 @@ export default function CarnetApp() {
                       label: `Mort contre ${monsterName}`,
                       refId: monsterId,
                       createdAt: deathAt,
-                      result: `Tentative ${item.attempts ?? 1} terminée`,
+                      result: `Tentative ${item.attempts ?? 1} terminÃ©e`,
                     },
                   ],
                   choices: node.choices ?? [],
@@ -431,56 +432,136 @@ export default function CarnetApp() {
     return Number.isFinite(value) ? value : fallback;
   };
 
+  const categoryOptions: Category[] = ["Objets", "Armes", "Armures", "Sorts", "Autres"];
+
+  const boolFromSelect = (value: string | undefined) => value === "Oui";
+
+  const effectOptions = () => [
+    "Aucun",
+    ...selected.stats.map((stat) => `Stat: ${stat.name}`),
+    ...selected.resources.map((resource) => `Ressource: ${resource.name}`),
+  ];
+
+  const optionFromEffect = (effect?: ItemEffect) => {
+    if (!effect) return "Aucun";
+    return `${effect.collection === "resources" ? "Ressource" : "Stat"}: ${effect.statName}`;
+  };
+
+  const effectFromValues = (target: string | undefined, deltaValue: string | undefined): ItemEffect[] => {
+    if (!target || target === "Aucun") return [];
+    const delta = Number(deltaValue);
+    if (!Number.isFinite(delta) || delta === 0) return [];
+    const collection = target.startsWith("Ressource:") ? "resources" : "stats";
+    const name = target.replace(/^Ressource: |^Stat: /, "");
+    const pool = collection === "resources" ? selected.resources : selected.stats;
+    const stat = pool.find((candidate) => candidate.name === name);
+    return [{
+      id: uid(),
+      collection,
+      statId: stat?.id,
+      statName: stat?.name ?? name,
+      delta,
+    }];
+  };
+
   const addItem = async () => {
     const values = await requestForm({
       title: "Ajouter un objet",
-      description: "Entre les informations comme tu les noterais sur ta feuille.",
+      description: "Création rapide. Les effets et options spéciales se règlent ensuite avec Modifier.",
       fields: [
-        { name: "name", label: "Nom", placeholder: "Ex. Clé d’argent" },
-        { name: "icon", label: "Icône ou emoji", value: "🎒" },
-        { name: "subtitle", label: "Description", type: "textarea", value: "Objet personnalisé" },
+        { name: "name", label: "Nom", placeholder: "Ex. Clé d'argent" },
+        { name: "kind", label: "Catégorie", type: "select", value: category, options: categoryOptions },
         { name: "quantity", label: "Quantité", type: "number", value: "1" },
       ],
     });
     const name = values?.name.trim();
     if (!name) return;
-    const icon = values?.icon.trim() || "🎒";
-    const subtitle = values?.subtitle.trim() || "Objet personnalisé";
+    const kind = categoryOptions.includes(values?.kind as Category) ? (values?.kind as Category) : category;
     const quantity = Math.max(1, Number(values?.quantity) || 1);
     setSelected({
       items: [
         ...selected.items,
-        { id: uid(), name, kind: category, quantity, subtitle, icon },
+        {
+          id: uid(),
+          name,
+          kind,
+          quantity,
+          subtitle: "Objet personnalisé",
+          icon: kind === "Armes" ? "A" : kind === "Armures" ? "D" : kind === "Sorts" ? "S" : "I",
+          wearable: kind === "Armes" || kind === "Armures",
+          worn: false,
+          bonusActiveWhenWorn: true,
+          combatUsable: kind === "Armes" || kind === "Sorts",
+          effects: [],
+        },
       ],
     });
+    setCategory(kind);
   };
 
   const editItem = async (item: Item) => {
+    const primaryEffect = item.effects?.[0];
     const values = await requestForm({
-      title: "Modifier l’objet",
+      title: "Modifier l'objet",
       fields: [
         { name: "name", label: "Nom", value: item.name },
-        { name: "icon", label: "Icône ou emoji", value: item.icon },
-        { name: "subtitle", label: "Description", type: "textarea", value: item.subtitle },
+        { name: "kind", label: "Catégorie", type: "select", value: item.kind, options: categoryOptions },
         { name: "quantity", label: "Quantité", type: "number", value: String(item.quantity) },
-        { name: "kind", label: "Catégorie", type: "select", value: item.kind, options: ["Objets", "Armes", "Armures", "Sorts", "Autres"] },
+        { name: "subtitle", label: "Description", type: "textarea", value: item.subtitle },
+        { name: "notes", label: "Notes", type: "textarea", value: item.notes ?? "" },
+        { name: "icon", label: "Icône ou emoji", value: item.icon },
+        { name: "uses", label: "Nombre d'utilisations", type: "number", value: String(item.uses ?? 0) },
+        { name: "consumedOnUse", label: "Consommé après usage", type: "select", value: item.consumedOnUse ? "Oui" : "Non", options: ["Non", "Oui"] },
+        { name: "wearable", label: "Peut être porté", type: "select", value: item.wearable ? "Oui" : "Non", options: ["Non", "Oui"] },
+        { name: "worn", label: "État", type: "select", value: item.worn ? "Porté" : "Non porté", options: ["Non porté", "Porté"] },
+        { name: "bonusActiveWhenWorn", label: "Bonus actif seulement si porté", type: "select", value: item.bonusActiveWhenWorn === false ? "Non" : "Oui", options: ["Oui", "Non"] },
+        { name: "combatUsable", label: "Utilisable en combat", type: "select", value: item.combatUsable ? "Oui" : "Non", options: ["Non", "Oui"] },
+        { name: "effectTarget", label: "Effet sur une stat/ressource", type: "select", value: optionFromEffect(primaryEffect), options: effectOptions() },
+        { name: "effectDelta", label: "Bonus / malus", type: "number", value: String(primaryEffect?.delta ?? 0) },
       ],
     });
     const name = values?.name.trim();
     if (!name) return;
     const icon = values?.icon.trim() || item.icon;
     const subtitle = values?.subtitle.trim() || item.subtitle;
+    const notes = values?.notes.trim() || "";
     const quantity = Math.max(0, Number(values?.quantity) || 0);
-    const kind = (["Objets", "Armes", "Armures", "Sorts", "Autres"] as string[]).includes(values?.kind ?? "")
+    const kind = (categoryOptions as string[]).includes(values?.kind ?? "")
       ? (values?.kind as Category)
       : item.kind;
+    const wearable = boolFromSelect(values?.wearable);
+    const effects = effectFromValues(values?.effectTarget, values?.effectDelta);
     setSelected({
       items: selected.items.map((i) =>
-        i.id === item.id ? { ...i, name, icon, subtitle, quantity, kind } : i,
+        i.id === item.id
+          ? {
+              ...i,
+              name,
+              icon,
+              subtitle,
+              notes,
+              quantity,
+              kind,
+              uses: Math.max(0, Number(values?.uses) || 0),
+              consumedOnUse: boolFromSelect(values?.consumedOnUse),
+              wearable,
+              worn: wearable && values?.worn === "Porté",
+              bonusActiveWhenWorn: boolFromSelect(values?.bonusActiveWhenWorn),
+              combatUsable: boolFromSelect(values?.combatUsable),
+              effects,
+            }
+          : i,
       ),
     });
   };
 
+  const toggleItemWorn = (id: string) => {
+    setSelected({
+      items: selected.items.map((item) =>
+        item.id === id && item.wearable ? { ...item, worn: !item.worn } : item,
+      ),
+    });
+  };
   const deleteItem = (id: string) => {
     if (!confirm("Supprimer cet objet?")) return;
     setSelected({ items: selected.items.filter((i) => i.id !== id) });
@@ -489,7 +570,7 @@ export default function CarnetApp() {
   const addNote = async () => {
     const values = await requestForm({
       title: "Nouvelle note",
-      fields: [{ name: "note", label: "Note", type: "textarea", placeholder: "Écris ta note…" }],
+      fields: [{ name: "note", label: "Note", type: "textarea", placeholder: "Ã‰cris ta noteâ€¦" }],
     });
     const note = values?.note.trim();
     if (!note) return;
@@ -518,7 +599,7 @@ export default function CarnetApp() {
       title: "Ajouter un monstre",
       fields: [
         { name: "name", label: "Nom", placeholder: "Ex. Vampire" },
-        { name: "skill", label: "Stat d’attaque", type: "number", value: "6" },
+        { name: "skill", label: "Stat dâ€™attaque", type: "number", value: "6" },
         { name: "endurance", label: "Vie", type: "number", value: "8" },
         { name: "note", label: "Note", type: "textarea" },
       ],
@@ -551,7 +632,7 @@ export default function CarnetApp() {
       title: "Modifier le monstre",
       fields: [
         { name: "name", label: "Nom", value: monster.name },
-        { name: "skill", label: "Stat d’attaque", type: "number", value: String(monster.skill) },
+        { name: "skill", label: "Stat dâ€™attaque", type: "number", value: String(monster.skill) },
         { name: "maxEndurance", label: "Vie maximale", type: "number", value: String(monster.maxEndurance) },
         { name: "endurance", label: "Vie actuelle", type: "number", value: String(monster.endurance) },
         { name: "note", label: "Note", type: "textarea", value: monster.note },
@@ -726,15 +807,15 @@ export default function CarnetApp() {
 
     if (kind === "dice") {
       const values = await requestForm({
-        title: "Nouveau test de dé",
-        description: "Décris le contexte en une phrase. Le module Dés s’ouvrira ensuite.",
-        submitLabel: "Ouvrir les dés",
+        title: "Nouveau test de dÃ©",
+        description: "DÃ©cris le contexte en une phrase. Le module DÃ©s sâ€™ouvrira ensuite.",
+        submitLabel: "Ouvrir les dÃ©s",
         fields: [
           {
             name: "context",
             label: "Contexte",
             type: "textarea",
-            placeholder: "Ex. Éviter le vampire, traverser le pont, résister à la peur…",
+            placeholder: "Ex. Ã‰viter le vampire, traverser le pont, rÃ©sister Ã  la peurâ€¦",
           },
         ],
       });
@@ -746,27 +827,27 @@ export default function CarnetApp() {
     }
 
     if (kind === "item" || kind === "key" || kind === "spell") {
-      const defaultIcon = kind === "key" ? "🔑" : kind === "spell" ? "🧙" : "🎒";
+      const defaultIcon = kind === "key" ? "ðŸ”‘" : kind === "spell" ? "ðŸ§™" : "ðŸŽ’";
       const defaultKind: Category = kind === "spell" ? "Sorts" : "Objets";
       const values = await requestForm({
-        title: kind === "spell" ? "Sort lié au paragraphe" : kind === "key" ? "Clé liée au paragraphe" : "Objet lié au paragraphe",
-        description: `Cet élément sera ajouté à l’inventaire et lié au §${paragraph}.`,
+        title: kind === "spell" ? "Sort liÃ© au paragraphe" : kind === "key" ? "ClÃ© liÃ©e au paragraphe" : "Objet liÃ© au paragraphe",
+        description: `Cet Ã©lÃ©ment sera ajoutÃ© Ã  lâ€™inventaire et liÃ© au Â§${paragraph}.`,
         fields: [
-          { name: "name", label: kind === "spell" ? "Nom du sort" : "Nom de l’objet" },
-          { name: "icon", label: "Icône ou emoji", value: defaultIcon },
+          { name: "name", label: kind === "spell" ? "Nom du sort" : "Nom de lâ€™objet" },
+          { name: "icon", label: "IcÃ´ne ou emoji", value: defaultIcon },
           {
             name: "subtitle",
             label: "Description",
             type: "textarea",
-            value: kind === "key" ? "Objet clé" : `Trouvé au §${paragraph}`,
+            value: kind === "key" ? "Objet clÃ©" : `TrouvÃ© au Â§${paragraph}`,
           },
-          { name: "quantity", label: "Quantité", type: "number", value: "1" },
+          { name: "quantity", label: "QuantitÃ©", type: "number", value: "1" },
         ],
       });
       const name = values?.name.trim();
       if (!name) return;
       const icon = values?.icon.trim() || defaultIcon;
-      const subtitle = values?.subtitle.trim() || `Trouvé au §${paragraph}`;
+      const subtitle = values?.subtitle.trim() || `TrouvÃ© au Â§${paragraph}`;
       const quantity = Math.max(1, Number(values?.quantity) || 1);
       const item: Item = {
         id: uid(),
@@ -803,20 +884,20 @@ export default function CarnetApp() {
 
     if (kind === "combat") {
       const values = await requestForm({
-        title: "Combat lié au paragraphe",
-        description: `Le monstre sera ajouté au module Combat et lié au §${paragraph}.`,
+        title: "Combat liÃ© au paragraphe",
+        description: `Le monstre sera ajoutÃ© au module Combat et liÃ© au Â§${paragraph}.`,
         fields: [
           { name: "name", label: "Nom du monstre", placeholder: "Ex. Vampire" },
-          { name: "skill", label: "Habileté", type: "number", value: "6" },
+          { name: "skill", label: "HabiletÃ©", type: "number", value: "6" },
           { name: "endurance", label: "Endurance", type: "number", value: "8" },
-          { name: "note", label: "Note", type: "textarea", value: `Rencontré au §${paragraph}` },
+          { name: "note", label: "Note", type: "textarea", value: `RencontrÃ© au Â§${paragraph}` },
         ],
       });
       const name = values?.name.trim();
       if (!name) return;
       const skill = Math.max(0, Number(values?.skill) || 6);
       const endurance = Math.max(1, Number(values?.endurance) || 8);
-      const note = values?.note.trim() || `Rencontré au §${paragraph}`;
+      const note = values?.note.trim() || `RencontrÃ© au Â§${paragraph}`;
       const monster: Monster = {
         id: uid(),
         name,
@@ -857,16 +938,16 @@ export default function CarnetApp() {
     const labels: Record<JourneyTag, string> = {
       death: "Mort",
       combat: "Combat",
-      dice: "Dé",
+      dice: "DÃ©",
       spell: "Sort",
       item: "Objet",
       important: "Important",
-      key: "Clé",
+      key: "ClÃ©",
       secret: "Secret",
       danger: "Danger",
     };
     const values = await requestForm({
-      title: "Événement lié au paragraphe",
+      title: "Ã‰vÃ©nement liÃ© au paragraphe",
       fields: [
         { name: "label", label: "Description", type: "textarea", value: labels[kind] },
       ],
@@ -945,9 +1026,22 @@ export default function CarnetApp() {
 
     let nextStats = selected.stats;
     let nextResources = selected.resources;
+    let nextItems = selected.items;
     let nextMonsterEndurance = monster.endurance;
 
     round.actions.forEach((action) => {
+      if (action.type === "item") {
+        nextItems = nextItems.map((item) => {
+          if (item.id !== action.itemId) return item;
+          return {
+            ...item,
+            uses: item.uses ? Math.max(0, item.uses - 1) : item.uses,
+            quantity: item.consumedOnUse ? Math.max(0, item.quantity - 1) : item.quantity,
+          };
+        });
+        return;
+      }
+
       if (action.type !== "stat") return;
 
       if (action.target === "monster") {
@@ -975,12 +1069,14 @@ export default function CarnetApp() {
     });
 
     const lifeStat =
-      nextStats.find((stat) => /endurance|vie|vitalité|vitalite|santé|sante|pv/i.test(stat.name)) ??
+      nextStats.find((stat) => /endurance|vie|vitalitÃ©|vitalite|santÃ©|sante|pv/i.test(stat.name)) ??
       nextStats[1] ??
       nextStats[0];
+    const nextAdventureForEffects = { ...selected, stats: nextStats, resources: nextResources, items: nextItems };
+    const lifeValue = lifeStat ? effectiveStatValue(nextAdventureForEffects, lifeStat, "stats") : 1;
 
     const combatResult =
-      (lifeStat?.current ?? 1) <= 0
+      lifeValue <= 0
         ? "defeat"
         : nextMonsterEndurance <= 0
           ? "victory"
@@ -1006,6 +1102,7 @@ export default function CarnetApp() {
       diceHistory: [primaryRoll, ...extraRolls, ...(selected.diceHistory ?? [])].slice(0, 100),
       stats: nextStats,
       resources: nextResources,
+      items: nextItems,
       monsters: selected.monsters.map((candidate) =>
         candidate.id === monsterId
           ? {
@@ -1029,7 +1126,7 @@ export default function CarnetApp() {
                         combatResult === "victory"
                           ? "Victoire"
                           : combatResult === "defeat"
-                            ? "Défaite"
+                            ? "DÃ©faite"
                             : combatResult === "interrupted"
                               ? "Interrompu"
                               : "En cours",
@@ -1064,7 +1161,7 @@ export default function CarnetApp() {
       diceSides: selected.diceConfig?.sides ?? 6,
       rolls: [],
       total: 0,
-      context: monster ? `Combat quitté contre ${monster.name}` : "Combat quitté",
+      context: monster ? `Combat quittÃ© contre ${monster.name}` : "Combat quittÃ©",
       actions: [{ id: uid(), type: "note", note: reason }],
     };
 
@@ -1103,7 +1200,7 @@ export default function CarnetApp() {
   if (!ready || !selected)
     return (
       <main className="grimoire-bg min-h-screen p-6 text-parchment">
-        Chargement…
+        Chargementâ€¦
       </main>
     );
 
@@ -1158,6 +1255,7 @@ export default function CarnetApp() {
             addItem={addItem}
             editItem={editItem}
             deleteItem={deleteItem}
+            toggleItemWorn={toggleItemWorn}
           />
         )}
         {screen === "combat" && (

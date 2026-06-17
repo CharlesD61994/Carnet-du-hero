@@ -28,6 +28,14 @@ export type Stat = {
   color?: string;
 };
 
+export type ItemEffect = {
+  id: string;
+  collection: "stats" | "resources";
+  statId?: string;
+  statName: string;
+  delta: number;
+};
+
 export type Item = {
   id: string;
   name: string;
@@ -35,6 +43,14 @@ export type Item = {
   quantity: number;
   subtitle: string;
   icon: string;
+  notes?: string;
+  uses?: number;
+  consumedOnUse?: boolean;
+  wearable?: boolean;
+  worn?: boolean;
+  bonusActiveWhenWorn?: boolean;
+  combatUsable?: boolean;
+  effects?: ItemEffect[];
   sourceParagraph?: number;
   sourceNodeId?: string;
 };

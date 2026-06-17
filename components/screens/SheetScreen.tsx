@@ -2,6 +2,7 @@ import type { Adventure } from "@/lib/types";
 import { Header } from "@/components/ui/Header";
 import { StickyHeaderGroup } from "@/components/ui/StickyHeaderGroup";
 import { Panel } from "@/components/ui/Panel";
+import { activeItemEffects, effectiveStatValue, itemEffectSummary, statBonus } from "@/lib/effects";
 
 export function SheetScreen({
   adventure,
@@ -18,6 +19,9 @@ export function SheetScreen({
   onLibrary: () => void;
   onOptions: () => void;
 }) {
+  const wornItems = adventure.items.filter((item) => item.worn);
+  const activeEffects = activeItemEffects(adventure);
+
   return (
     <div>
       <StickyHeaderGroup>
@@ -37,83 +41,130 @@ export function SheetScreen({
           </div>
         </div>
         <div className="grid grid-cols-3 gap-2">
-          {adventure.stats.map((s) => (
-            <div
-              key={s.id}
-              className="gold-frame rounded-xl bg-panel/80 p-3 text-center shadow-card"
-            >
-              <div className="font-serif text-[.70rem] uppercase tracking-wide text-gold2">
-                {s.name}
-              </div>
-              <div className={`my-2 text-3xl ${s.color ?? ""}`}>{s.icon}</div>
-              <div className="text-xl font-bold text-gold2">
-                {s.current}
-                {s.max ? ` / ${s.max}` : ""}
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-1">
-                <button
-                  onClick={() => updateStat(s.id, -1)}
-                  className="rounded-lg border border-line py-1 text-gold"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => updateStat(s.id, 1)}
-                  className="rounded-lg border border-line py-1 text-gold"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {adventure.resources.map((r) => (
-            <Panel key={r.id} className="p-4">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{r.icon}</span>
-                <div>
-                  <p className="font-serif text-sm uppercase text-gold2">
-                    {r.name}
-                  </p>
-                  <p className="text-xl font-bold">
-                    {r.current}
-                    {r.max ? ` / ${r.max}` : ""}
-                  </p>
+          {adventure.stats.map((s) => {
+            const bonus = statBonus(adventure, s, "stats");
+            const effective = effectiveStatValue(adventure, s, "stats");
+
+            return (
+              <div
+                key={s.id}
+                className="gold-frame rounded-xl bg-panel/80 p-3 text-center shadow-card"
+              >
+                <div className="font-serif text-[.70rem] uppercase tracking-wide text-gold2">
+                  {s.name}
+                </div>
+                <div className={`my-2 text-3xl ${s.color ?? ""}`}>{s.icon}</div>
+                <div className="text-xl font-bold text-gold2">
+                  {s.current}
+                  {bonus ? <span className="ml-1 text-base text-emerald-200">{bonus > 0 ? `+${bonus}` : bonus}</span> : null}
+                  {s.max ? ` / ${s.max}` : ""}
+                </div>
+                {bonus ? <div className="text-xs text-muted">Total {effective}</div> : null}
+                <div className="mt-3 grid grid-cols-2 gap-1">
+                  <button
+                    onClick={() => updateStat(s.id, -1)}
+                    className="rounded-lg border border-line py-1 text-gold"
+                  >
+                    -
+                  </button>
+                  <button
+                    onClick={() => updateStat(s.id, 1)}
+                    className="rounded-lg border border-line py-1 text-gold"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-1">
-                <button
-                  onClick={() => updateResource(r.id, -1)}
-                  className="rounded-lg border border-line py-1 text-gold"
-                >
-                  −
-                </button>
-                <button
-                  onClick={() => updateResource(r.id, 1)}
-                  className="rounded-lg border border-line py-1 text-gold"
-                >
-                  +
-                </button>
-              </div>
-            </Panel>
-          ))}
+            );
+          })}
         </div>
+        <div className="grid grid-cols-2 gap-2">
+          {adventure.resources.map((r) => {
+            const bonus = statBonus(adventure, r, "resources");
+            const effective = effectiveStatValue(adventure, r, "resources");
+
+            return (
+              <Panel key={r.id} className="p-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{r.icon}</span>
+                  <div>
+                    <p className="font-serif text-sm uppercase text-gold2">
+                      {r.name}
+                    </p>
+                    <p className="text-xl font-bold">
+                      {r.current}
+                      {bonus ? <span className="ml-1 text-base text-emerald-200">{bonus > 0 ? `+${bonus}` : bonus}</span> : null}
+                      {r.max ? ` / ${r.max}` : ""}
+                    </p>
+                    {bonus ? <p className="text-xs text-muted">Total {effective}</p> : null}
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-1">
+                  <button
+                    onClick={() => updateResource(r.id, -1)}
+                    className="rounded-lg border border-line py-1 text-gold"
+                  >
+                    -
+                  </button>
+                  <button
+                    onClick={() => updateResource(r.id, 1)}
+                    className="rounded-lg border border-line py-1 text-gold"
+                  >
+                    +
+                  </button>
+                </div>
+              </Panel>
+            );
+          })}
+        </div>
+        <Panel className="p-4">
+          <h2 className="mb-3 font-serif text-sm uppercase tracking-wide text-gold2">
+            Équipement porté
+          </h2>
+          <div className="space-y-2">
+            {wornItems.length === 0 ? (
+              <p className="text-sm text-muted">Aucun équipement porté.</p>
+            ) : (
+              wornItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-line/70 bg-black/20 p-3 text-sm"
+                >
+                  <span className="min-w-0 truncate">{item.icon} {item.name}</span>
+                  {itemEffectSummary(item) ? (
+                    <span className="shrink-0 text-xs text-gold2">{itemEffectSummary(item)}</span>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </Panel>
         <Panel className="p-4">
           <h2 className="mb-3 font-serif text-sm uppercase tracking-wide text-gold2">
             Effets actifs
           </h2>
           <div className="space-y-2">
-            {adventure.effects.length === 0 && (
+            {adventure.effects.length === 0 && activeEffects.length === 0 && (
               <p className="text-sm text-muted">Aucun effet actif.</p>
             )}
+            {activeEffects.map((effect) => (
+              <div
+                key={`${effect.itemName}-${effect.id}`}
+                className="flex items-center justify-between rounded-lg border border-line/70 bg-black/20 p-3 text-sm"
+              >
+                <span>✦ {effect.itemName}</span>
+                <span className="text-xs text-gold2">
+                  {effect.delta > 0 ? `+${effect.delta}` : effect.delta} {effect.statName}
+                </span>
+              </div>
+            ))}
             {adventure.effects.map((e, i) => (
               <div
                 key={i}
                 className="flex items-center justify-between rounded-lg border border-line/70 bg-black/20 p-3 text-sm"
               >
                 <span>✦ {e}</span>
-                <span className="text-xs text-muted">⌛</span>
+                <span className="text-xs text-muted">Actif</span>
               </div>
             ))}
           </div>

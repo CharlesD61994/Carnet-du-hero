@@ -1,9 +1,10 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { Adventure, Category, Item } from "@/lib/types";
 import { Header } from "@/components/ui/Header";
 import { AdventureStatusBar } from "@/components/ui/AdventureStatusBar";
 import { StickyHeaderGroup } from "@/components/ui/StickyHeaderGroup";
 import { Panel } from "@/components/ui/Panel";
+import { itemEffectSummary } from "@/lib/effects";
 
 export function InventoryScreen({
   adventure,
@@ -15,6 +16,7 @@ export function InventoryScreen({
   onOptions,
   editItem,
   deleteItem,
+  toggleItemWorn,
 }: {
   adventure: Adventure;
   category: Category;
@@ -25,6 +27,7 @@ export function InventoryScreen({
   onOptions: () => void;
   editItem: (item: Item) => void;
   deleteItem: (id: string) => void;
+  toggleItemWorn: (id: string) => void;
 }) {
   const filtered = adventure.items.filter((i) => i.kind === category);
   return (
@@ -78,10 +81,26 @@ export function InventoryScreen({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-serif text-base">{i.name}</p>
                   <p className="text-xs text-muted">{i.subtitle}</p>
+                  {itemEffectSummary(i) ? (
+                    <p className="mt-1 text-xs font-semibold text-gold2">{itemEffectSummary(i)}</p>
+                  ) : null}
                 </div>
                 <p className="text-lg text-parchment">x{i.quantity}</p>
               </div>
+              {i.notes ? (
+                <p className="mt-3 rounded-lg border border-line/60 bg-black/20 p-2 text-xs text-muted">
+                  {i.notes}
+                </p>
+              ) : null}
               <div className="mt-3 grid grid-cols-2 gap-2">
+                {i.wearable ? (
+                  <button
+                    onClick={() => toggleItemWorn(i.id)}
+                    className={`rounded-lg border py-2 text-sm ${i.worn ? "border-gold/50 bg-gold/15 text-gold2" : "border-line text-muted"}`}
+                  >
+                    {i.worn ? "Porté" : "Non porté"}
+                  </button>
+                ) : null}
                 <button
                   onClick={() => editItem(i)}
                   className="rounded-lg border border-line py-2 text-sm text-gold"
@@ -90,7 +109,7 @@ export function InventoryScreen({
                 </button>
                 <button
                   onClick={() => deleteItem(i.id)}
-                  className="rounded-lg border border-red-900/60 py-2 text-sm text-red-200"
+                  className={`${i.wearable ? "col-span-2" : ""} rounded-lg border border-red-900/60 py-2 text-sm text-red-200`}
                 >
                   Supprimer
                 </button>
