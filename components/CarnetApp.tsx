@@ -448,7 +448,45 @@ export default function CarnetApp() {
     return `${effect.collection === "resources" ? "Ressource" : "Stat"}: ${effect.statName}`;
   };
 
-  const effectFromValues = (target: string | undefined, deltaValue: string | undefined): ItemEffect[] => {
+  const durationFromLabel = (value: string | undefined): ItemEffect["duration"] => {
+    if (value === "Prochain jet") return "nextRoll";
+    if (value === "Prochain assaut") return "nextRound";
+    if (value === "Combat en cours") return "combat";
+    if (value === "Jusqu'au prochain paragraphe") return "paragraph";
+    if (value === "Permanent") return "permanent";
+    return "instant";
+  };
+
+  const durationToLabel = (duration?: ItemEffect["duration"]) => {
+    if (duration === "nextRoll") return "Prochain jet";
+    if (duration === "nextRound") return "Prochain assaut";
+    if (duration === "combat") return "Combat en cours";
+    if (duration === "paragraph") return "Jusqu'au prochain paragraphe";
+    if (duration === "permanent") return "Permanent";
+    return "Instantané";
+  };
+
+  const useCostFromLabel = (value: string | undefined): Item["useCost"] => {
+    if (value === "Perd 1 charge") return "charge";
+    if (value === "Perd 1 quantité") return "quantity";
+    if (value === "Disparaît après usage") return "destroy";
+    if (value === "Devient inutilisable") return "disable";
+    return "none";
+  };
+
+  const useCostToLabel = (value?: Item["useCost"], consumedOnUse?: boolean) => {
+    if (value === "charge") return "Perd 1 charge";
+    if (value === "quantity" || consumedOnUse) return "Perd 1 quantité";
+    if (value === "destroy") return "Disparaît après usage";
+    if (value === "disable") return "Devient inutilisable";
+    return "Ne disparaît pas";
+  };
+
+  const effectFromValues = (
+    target: string | undefined,
+    deltaValue: string | undefined,
+    durationValue?: string,
+  ): ItemEffect[] => {
     if (!target || target === "Aucun") return [];
     const delta = Number(deltaValue);
     if (!Number.isFinite(delta) || delta === 0) return [];
@@ -462,7 +500,95 @@ export default function CarnetApp() {
       statId: stat?.id,
       statName: stat?.name ?? name,
       delta,
+      duration: durationFromLabel(durationValue),
     }];
+  };
+
+  const applyItemPreset = async (item: Item): Promise<Item> => {
+    const presetValues = await requestForm({
+      title: "Que fait cet objet?",
+      description: "Choisis le comportement principal. Tu pourras toujours l'ajuster avec Modifier.",
+      submitLabel: "Continuer",
+      fields: [
+        {
+          name: "preset",
+          label: "Type d'objet",
+          type: "select",
+          value:
+            item.kind === "Sorts"
+              ? "Sort ou pouvoir limité"
+              : item.kind === "Armes" || item.kind === "Armures"
+                ? "Se porte"
+                : "Rien de spécial",
+          options: [
+            "Rien de spécial",
+            "Soigne / restaure",
+            "Donne un bonus",
+            "Se porte",
+            "S'utilise en combat",
+            "Objet clé",
+            "Sort ou pouvoir limité",
+          ],
+        },
+      ],
+    });
+    const preset = presetValues?.preset ?? "Rien de spécial";
+    if (preset === "Rien de spécial") return item;
+
+    const afterUseOptions = ["Ne disparaît pas", "Perd 1 charge", "Perd 1 quantité", "Disparaît après usage", "Devient inutilisable"];
+    const durationOptions = ["Instantané", "Prochain jet", "Prochain assaut", "Combat en cours", "Jusqu'au prochain paragraphe", "Permanent"];
+
+    if (preset === "Objet clé") {
+      return {
+        ...item,
+        subtitle: "Objet clé",
+        icon: item.icon === "I" ? "K" : item.icon,
+        notes: "Objet important à conserver.",
+        combatUsable: false,
+        useCost: "none",
+      };
+    }
+
+    const effectDefaults =
+      preset === "Soigne / restaure"
+        ? { title: "Effet de soin", delta: "4", duration: "Instantané", afterUse: "Perd 1 quantité" }
+        : preset === "Se porte"
+          ? { title: "Équipement porté", delta: item.kind === "Armures" ? "1" : "1", duration: "Permanent", afterUse: "Ne disparaît pas" }
+          : preset === "Sort ou pouvoir limité"
+            ? { title: "Sort ou pouvoir limité", delta: "2", duration: "Instantané", afterUse: "Perd 1 charge" }
+            : preset === "S'utilise en combat"
+              ? { title: "Objet de combat", delta: "2", duration: "Prochain assaut", afterUse: "Perd 1 charge" }
+              : { title: "Bonus", delta: "1", duration: "Permanent", afterUse: "Ne disparaît pas" };
+
+    const config = await requestForm({
+      title: effectDefaults.title,
+      submitLabel: "Créer l'objet",
+      fields: [
+        { name: "effectTarget", label: "Effet sur", type: "select", value: effectOptions()[1] ?? "Aucun", options: effectOptions() },
+        { name: "effectDelta", label: "Bonus / malus", type: "number", value: effectDefaults.delta },
+        { name: "duration", label: "Durée", type: "select", value: effectDefaults.duration, options: durationOptions },
+        { name: "afterUse", label: "Après usage", type: "select", value: effectDefaults.afterUse, options: afterUseOptions },
+        { name: "uses", label: "Charges / utilisations", type: "number", value: effectDefaults.afterUse === "Perd 1 charge" ? "3" : "0" },
+      ],
+    });
+
+    const useCost = useCostFromLabel(config?.afterUse);
+    const effects = effectFromValues(config?.effectTarget, config?.effectDelta, config?.duration);
+    const wearable = preset === "Se porte" || config?.duration === "Permanent";
+
+    return {
+      ...item,
+      subtitle: effects.length ? effects.map((effect) => `${effect.delta > 0 ? "+" : ""}${effect.delta} ${effect.statName}`).join(", ") : item.subtitle,
+      notes: `${preset}. Durée : ${config?.duration ?? effectDefaults.duration}. Après usage : ${config?.afterUse ?? effectDefaults.afterUse}.`,
+      uses: useCost === "charge" ? Math.max(1, Number(config?.uses) || 1) : Math.max(0, Number(config?.uses) || 0),
+      consumedOnUse: useCost === "quantity" || useCost === "destroy",
+      useCost,
+      wearable,
+      worn: preset === "Se porte",
+      bonusActiveWhenWorn: wearable,
+      combatUsable: preset === "S'utilise en combat" || preset === "Sort ou pouvoir limité" || config?.duration === "Prochain assaut" || config?.duration === "Combat en cours",
+      effects,
+    };
   };
 
   const addItem = async () => {
@@ -479,22 +605,25 @@ export default function CarnetApp() {
     if (!name) return;
     const kind = categoryOptions.includes(values?.kind as Category) ? (values?.kind as Category) : category;
     const quantity = Math.max(1, Number(values?.quantity) || 1);
+    const baseItem: Item = {
+      id: uid(),
+      name,
+      kind,
+      quantity,
+      subtitle: "Objet personnalisé",
+      icon: kind === "Armes" ? "A" : kind === "Armures" ? "D" : kind === "Sorts" ? "S" : "I",
+      wearable: kind === "Armes" || kind === "Armures",
+      worn: false,
+      bonusActiveWhenWorn: true,
+      combatUsable: kind === "Armes" || kind === "Sorts",
+      useCost: "none",
+      effects: [],
+    };
+    const item = await applyItemPreset(baseItem);
     setSelected({
       items: [
         ...selected.items,
-        {
-          id: uid(),
-          name,
-          kind,
-          quantity,
-          subtitle: "Objet personnalisé",
-          icon: kind === "Armes" ? "A" : kind === "Armures" ? "D" : kind === "Sorts" ? "S" : "I",
-          wearable: kind === "Armes" || kind === "Armures",
-          worn: false,
-          bonusActiveWhenWorn: true,
-          combatUsable: kind === "Armes" || kind === "Sorts",
-          effects: [],
-        },
+        item,
       ],
     });
     setCategory(kind);
@@ -512,13 +641,14 @@ export default function CarnetApp() {
         { name: "notes", label: "Notes", type: "textarea", value: item.notes ?? "" },
         { name: "icon", label: "Icône ou emoji", value: item.icon },
         { name: "uses", label: "Nombre d'utilisations", type: "number", value: String(item.uses ?? 0) },
-        { name: "consumedOnUse", label: "Consommé après usage", type: "select", value: item.consumedOnUse ? "Oui" : "Non", options: ["Non", "Oui"] },
+        { name: "useCost", label: "Après usage", type: "select", value: useCostToLabel(item.useCost, item.consumedOnUse), options: ["Ne disparaît pas", "Perd 1 charge", "Perd 1 quantité", "Disparaît après usage", "Devient inutilisable"] },
         { name: "wearable", label: "Peut être porté", type: "select", value: item.wearable ? "Oui" : "Non", options: ["Non", "Oui"] },
         { name: "worn", label: "État", type: "select", value: item.worn ? "Porté" : "Non porté", options: ["Non porté", "Porté"] },
         { name: "bonusActiveWhenWorn", label: "Bonus actif seulement si porté", type: "select", value: item.bonusActiveWhenWorn === false ? "Non" : "Oui", options: ["Oui", "Non"] },
         { name: "combatUsable", label: "Utilisable en combat", type: "select", value: item.combatUsable ? "Oui" : "Non", options: ["Non", "Oui"] },
         { name: "effectTarget", label: "Effet sur une stat/ressource", type: "select", value: optionFromEffect(primaryEffect), options: effectOptions() },
         { name: "effectDelta", label: "Bonus / malus", type: "number", value: String(primaryEffect?.delta ?? 0) },
+        { name: "duration", label: "Durée de l'effet", type: "select", value: durationToLabel(primaryEffect?.duration), options: ["Instantané", "Prochain jet", "Prochain assaut", "Combat en cours", "Jusqu'au prochain paragraphe", "Permanent"] },
       ],
     });
     const name = values?.name.trim();
@@ -531,7 +661,8 @@ export default function CarnetApp() {
       ? (values?.kind as Category)
       : item.kind;
     const wearable = boolFromSelect(values?.wearable);
-    const effects = effectFromValues(values?.effectTarget, values?.effectDelta);
+    const useCost = useCostFromLabel(values?.useCost);
+    const effects = effectFromValues(values?.effectTarget, values?.effectDelta, values?.duration);
     setSelected({
       items: selected.items.map((i) =>
         i.id === item.id
@@ -544,7 +675,8 @@ export default function CarnetApp() {
               quantity,
               kind,
               uses: Math.max(0, Number(values?.uses) || 0),
-              consumedOnUse: boolFromSelect(values?.consumedOnUse),
+              consumedOnUse: useCost === "quantity" || useCost === "destroy",
+              useCost,
               wearable,
               worn: wearable && values?.worn === "Porté",
               bonusActiveWhenWorn: boolFromSelect(values?.bonusActiveWhenWorn),
@@ -1053,10 +1185,16 @@ export default function CarnetApp() {
 
         nextItems = nextItems.map((item) => {
           if (item.id !== action.itemId) return item;
+          const useCost = item.useCost ?? (item.consumedOnUse ? "quantity" : "none");
           return {
             ...item,
-            uses: item.uses ? Math.max(0, item.uses - 1) : item.uses,
-            quantity: item.consumedOnUse ? Math.max(0, item.quantity - 1) : item.quantity,
+            uses: useCost === "charge" && item.uses ? Math.max(0, item.uses - 1) : item.uses,
+            quantity:
+              useCost === "quantity" || useCost === "destroy"
+                ? Math.max(0, item.quantity - 1)
+                : item.quantity,
+            combatUsable: useCost === "disable" ? false : item.combatUsable,
+            useCost: useCost === "disable" ? "disable" : item.useCost,
           };
         });
         return;

@@ -6,6 +6,7 @@ function sameStat(effect: ItemEffect, stat: Stat) {
 
 export function itemEffectsAreActive(item: Item) {
   if (!item.effects?.length) return false;
+  if (item.effects.some((effect) => effect.duration && effect.duration !== "permanent")) return false;
   return item.bonusActiveWhenWorn ? Boolean(item.worn) : true;
 }
 
@@ -33,12 +34,25 @@ export function effectLabel(effect: ItemEffect) {
 }
 
 export function itemEffectSummary(item: Item) {
-  return (item.effects ?? []).map(effectLabel).join(", ");
+  const summary = (item.effects ?? []).map(effectLabel).join(", ");
+  if (!summary) return "";
+  const duration = item.effects?.[0]?.duration;
+  const durationLabel: Record<string, string> = {
+    instant: "instantané",
+    nextRoll: "prochain jet",
+    nextRound: "prochain assaut",
+    combat: "combat",
+    paragraph: "jusqu'au prochain paragraphe",
+    permanent: "permanent",
+  };
+  return duration ? `${summary} (${durationLabel[duration]})` : summary;
 }
 
 export function combatItems(adventure: Adventure) {
   return adventure.items.filter((item) =>
     item.quantity > 0 &&
+    (item.useCost !== "charge" || (item.uses ?? 0) > 0) &&
+    item.useCost !== "disable" &&
     (item.combatUsable || Boolean(item.uses) || Boolean(item.consumedOnUse) || Boolean(item.effects?.length)),
   );
 }

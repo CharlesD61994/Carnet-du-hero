@@ -34,6 +34,7 @@ export type ItemEffect = {
   statId?: string;
   statName: string;
   delta: number;
+  duration?: "instant" | "nextRoll" | "nextRound" | "combat" | "paragraph" | "permanent";
 };
 
 export type Item = {
@@ -50,6 +51,7 @@ export type Item = {
   worn?: boolean;
   bonusActiveWhenWorn?: boolean;
   combatUsable?: boolean;
+  useCost?: "none" | "charge" | "quantity" | "destroy" | "disable";
   effects?: ItemEffect[];
   sourceParagraph?: number;
   sourceNodeId?: string;

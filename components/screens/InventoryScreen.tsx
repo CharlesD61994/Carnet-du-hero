@@ -30,6 +30,14 @@ export function InventoryScreen({
   toggleItemWorn: (id: string) => void;
 }) {
   const filtered = adventure.items.filter((i) => i.kind === category);
+  const useCostLabel = (item: Item) => {
+    if (item.useCost === "charge") return `Charges : ${item.uses ?? 0}`;
+    if (item.useCost === "quantity" || item.consumedOnUse) return "Perd 1 quantité à l'usage";
+    if (item.useCost === "destroy") return "Disparaît après usage";
+    if (item.useCost === "disable") return "Inutilisable";
+    return "";
+  };
+
   return (
     <div>
       <StickyHeaderGroup>
@@ -83,6 +91,9 @@ export function InventoryScreen({
                   <p className="text-xs text-muted">{i.subtitle}</p>
                   {itemEffectSummary(i) ? (
                     <p className="mt-1 text-xs font-semibold text-gold2">{itemEffectSummary(i)}</p>
+                  ) : null}
+                  {useCostLabel(i) ? (
+                    <p className="mt-1 text-xs text-muted">{useCostLabel(i)}</p>
                   ) : null}
                 </div>
                 <p className="text-lg text-parchment">x{i.quantity}</p>
