@@ -1032,6 +1032,25 @@ export default function CarnetApp() {
 
     round.actions.forEach((action) => {
       if (action.type === "item") {
+        const usedItem = nextItems.find((item) => item.id === action.itemId);
+
+        usedItem?.effects?.forEach((effect) => {
+          if (effect.collection === "resources") {
+            nextResources = nextResources.map((resource) => {
+              if (resource.id !== effect.statId && resource.name !== effect.statName) return resource;
+              const nextValue = Math.max(0, resource.current + effect.delta);
+              return { ...resource, current: resource.max ? Math.min(resource.max, nextValue) : nextValue };
+            });
+            return;
+          }
+
+          nextStats = nextStats.map((stat) => {
+            if (stat.id !== effect.statId && stat.name !== effect.statName) return stat;
+            const nextValue = Math.max(0, stat.current + effect.delta);
+            return { ...stat, current: stat.max ? Math.min(stat.max, nextValue) : nextValue };
+          });
+        });
+
         nextItems = nextItems.map((item) => {
           if (item.id !== action.itemId) return item;
           return {

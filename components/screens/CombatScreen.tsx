@@ -1161,16 +1161,20 @@ function ItemActionDialog({
           </button>
           <button
             disabled={!item}
-            onClick={() => item && onConfirm({
-              id: uid(),
-              type: "item",
-              itemId: item.id,
-              itemName: item.name,
-              note: note.trim(),
-            })}
+            onClick={() => {
+              if (!item) return;
+              const effectSummary = itemEffectSummary(item);
+              onConfirm({
+                id: uid(),
+                type: "item",
+                itemId: item.id,
+                itemName: item.name,
+                note: [note.trim(), effectSummary].filter(Boolean).join(" · "),
+              });
+            }}
             className="rounded-2xl border border-gold/40 bg-gold/20 px-4 py-3 font-semibold text-gold2 disabled:opacity-50"
           >
-            Ajouter
+            Utiliser
           </button>
         </div>
       </div>
