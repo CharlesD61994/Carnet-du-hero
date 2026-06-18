@@ -586,15 +586,21 @@ export default function CarnetApp() {
 
     const useCost = useCostFromLabel(config?.afterUse);
     const hasEffect = boolFromSelect(config?.hasEffect);
-    const effects = hasEffect ? effectFromValues(config?.effectTarget, config?.effectDelta, config?.duration) : [];
+    const effects = hasEffect
+      ? effectFromValues(
+          config?.effectTarget,
+          config?.effectDelta,
+          preset === "Équipement" ? "Permanent" : config?.duration,
+        )
+      : [];
     const wearable = preset === "Équipement" && boolFromSelect(config?.wearable);
     const important = boolFromSelect(config?.important);
 
     return {
       ...item,
       icon: shouldUsePresetIcon ? defaultIconForPreset(preset, item.kind) : item.icon,
-      subtitle: important ? "Objet clé" : effects.length ? effects.map((effect) => `${effect.delta > 0 ? "+" : ""}${effect.delta} ${effect.statName}`).join(", ") : preset,
-      notes: `${preset}${important ? " · Important" : ""}. Durée : ${config?.duration ?? effectDefaults.duration}. Après usage : ${config?.afterUse ?? effectDefaults.afterUse}.`,
+      subtitle: "",
+      notes: `${preset}${important ? " · Important" : ""}. Durée : ${preset === "Équipement" ? "Permanent" : config?.duration ?? effectDefaults.duration}. Après usage : ${config?.afterUse ?? effectDefaults.afterUse}.`,
       uses: useCost === "charge" ? Math.max(1, Number(config?.uses) || 1) : Math.max(0, Number(config?.uses) || 0),
       consumedOnUse: useCost === "quantity" || useCost === "destroy",
       useCost,
@@ -627,7 +633,7 @@ export default function CarnetApp() {
       name,
       kind,
       quantity,
-      subtitle: "Objet personnalisé",
+      subtitle: "",
       icon,
       wearable: kind === "Armes" || kind === "Armures",
       worn: false,

@@ -88,7 +88,6 @@ export function InventoryScreen({
                 <div className="text-3xl">{i.icon}</div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-serif text-base">{i.name}</p>
-                  <p className="text-xs text-muted">{i.subtitle}</p>
                   {itemEffectSummary(i) ? (
                     <p className="mt-1 text-xs font-semibold text-gold2">{itemEffectSummary(i)}</p>
                   ) : null}
@@ -98,11 +97,6 @@ export function InventoryScreen({
                 </div>
                 <p className="text-lg text-parchment">x{i.quantity}</p>
               </div>
-              {i.notes ? (
-                <p className="mt-3 rounded-lg border border-line/60 bg-black/20 p-2 text-xs text-muted">
-                  {i.notes}
-                </p>
-              ) : null}
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {i.wearable ? (
                   <button

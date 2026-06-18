@@ -6,8 +6,9 @@ function sameStat(effect: ItemEffect, stat: Stat) {
 
 export function itemEffectsAreActive(item: Item) {
   if (!item.effects?.length) return false;
+  if (item.bonusActiveWhenWorn) return Boolean(item.worn);
   if (item.effects.some((effect) => effect.duration && effect.duration !== "permanent")) return false;
-  return item.bonusActiveWhenWorn ? Boolean(item.worn) : true;
+  return true;
 }
 
 export function activeItemEffects(adventure: Adventure) {

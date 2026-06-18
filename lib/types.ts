@@ -192,6 +192,27 @@ export type JourneyState = {
 
 export type AdventureLibraryAction = "rename" | "reset" | "delete";
 
+export type ActiveCondition = {
+  id: string;
+  name: string;
+  kind: "poison" | "disease" | "curse" | "infection" | "mutation" | "form" | "other";
+  value?: number;
+  note?: string;
+};
+
+export type RulesState = {
+  time?: {
+    elapsedHours?: number;
+    elapsedDays?: number;
+    currentDay?: string;
+    deadlineDays?: number;
+  };
+  conditions?: ActiveCondition[];
+  codes?: string[];
+  counters?: Record<string, number>;
+  selectedHeroId?: string;
+};
+
 export type Adventure = {
   id: string;
   title: string;
@@ -203,6 +224,9 @@ export type Adventure = {
   cover: string;
   attempts?: number;
   lastDeathAt?: string;
+  profileId?: string;
+  profileVersion?: number;
+  rulesState?: RulesState;
   hero: {
     name: string;
     level: number;
@@ -227,4 +251,6 @@ export type NewAdventureData = {
   heroName: string;
   system: System;
   diceConfig: DiceConfig;
+  profileId?: string;
+  selectedHeroId?: string;
 };
